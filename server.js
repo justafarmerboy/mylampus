@@ -9,7 +9,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 
 const MIN_DURATION_MIN = 15;
-const MAX_DURATION_MIN = 12 * 60;
+const MAX_DURATION_MIN = 60;
 const MAX_BODY_BYTES = 16 * 1024;
 const SWEEP_INTERVAL_MS = 5000;
 const COLORS = ['#d4ff4f', '#ffd84f', '#ff9f4f', '#4fffb0', '#4fd8ff', '#ff6fd8'];

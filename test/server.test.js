@@ -62,6 +62,7 @@ test('rejects wrong token and bad input', async (t) => {
   assert.equal((await app.post(`/api/trucks/${id}/open`, { token: 'nope', durationMin: 60, ...BKK })).status, 403);
   assert.equal((await app.post('/api/trucks/missing/open', { token, durationMin: 60, ...BKK })).status, 404);
   assert.equal((await app.post(`/api/trucks/${id}/open`, { token, durationMin: 5, ...BKK })).status, 400);
+  assert.equal((await app.post(`/api/trucks/${id}/open`, { token, durationMin: 61, ...BKK })).status, 400, 'max 1 hour');
   assert.equal((await app.post(`/api/trucks/${id}/open`, { token, durationMin: 60, lat: 200, lng: 0 })).status, 400);
   assert.equal((await app.post('/api/trucks', { name: '' })).status, 400);
 });

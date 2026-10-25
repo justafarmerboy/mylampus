@@ -4,7 +4,7 @@
 // Customer map: every open food truck is a firefly drifting around its real position.
 
 const WANDER_PX = 28;          // how far a firefly drifts from its true spot
-const DIM_START_MIN = 30;      // starts dimming this many minutes before closing
+const DIM_START_MIN = 15;      // starts dimming this many minutes before closing
 const MIN_ENERGY = 0.3;
 
 const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([13.7563, 100.5018], 13);
