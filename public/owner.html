@@ -16,24 +16,30 @@
     <h1>🚚 ร้านของฉัน</h1>
     <p class="sub">เปิดร้านแล้วหิ่งห้อยของคุณจะสว่างบนแผนที่ และดับลงเมื่อปิดร้านหรือครบเวลา</p>
 
-    <!-- Step 1: register -->
-    <section class="card hidden" id="register">
-      <h2>ลงทะเบียนร้าน</h2>
-      <form id="register-form">
-        <label for="name">ชื่อร้าน</label>
-        <input id="name" maxlength="60" required placeholder="เช่น ข้าวมันไก่ป้าแดง">
-        <label for="menu">เมนูเด่น / คำอธิบาย</label>
-        <textarea id="menu" maxlength="200" placeholder="เช่น ข้าวมันไก่ต้ม-ทอด, น้ำซุปฟรี"></textarea>
-        <label>สีแสงหิ่งห้อย</label>
-        <div class="swatches" id="swatches"></div>
-        <button class="btn" type="submit">สร้างหิ่งห้อยของฉัน ✦</button>
-      </form>
-      <div class="link-row"><span></span><button type="button" id="show-restore">มีรหัสร้านอยู่แล้ว?</button></div>
-      <form id="restore-form" class="hidden">
-        <label for="restore-code">รหัสร้าน (คัดลอกจากเครื่องเดิม)</label>
-        <input id="restore-code" placeholder="xxxxxxxxxxxx.yyyyyyyy…">
-        <button class="btn ghost" type="submit">เข้าสู่ร้าน</button>
-      </form>
+    <!-- Step 1: sign in with a shop code, or register a new shop -->
+    <section class="hidden" id="register">
+      <div class="card">
+        <h2>🔑 มีร้านอยู่แล้ว? เข้าร้านจากเครื่องนี้</h2>
+        <p class="sub" style="margin:0">วางรหัสร้านที่คัดลอกจากเครื่องเดิม (หน้านี้ › กล่อง “รหัสร้าน” › คัดลอกรหัส)</p>
+        <form id="restore-form">
+          <label for="restore-code">รหัสร้าน</label>
+          <input id="restore-code" placeholder="วางรหัสร้านที่นี่" autocomplete="off">
+          <button class="btn ghost" type="submit">เข้าสู่ร้าน</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>✦ ร้านใหม่? ลงทะเบียนร้าน</h2>
+        <form id="register-form">
+          <label for="name">ชื่อร้าน</label>
+          <input id="name" maxlength="60" required placeholder="เช่น ข้าวมันไก่ป้าแดง">
+          <label for="menu">เมนูเด่น / คำอธิบาย</label>
+          <textarea id="menu" maxlength="200" placeholder="เช่น ข้าวมันไก่ต้ม-ทอด, น้ำซุปฟรี"></textarea>
+          <label>สีแสงหิ่งห้อย</label>
+          <div class="swatches" id="swatches"></div>
+          <button class="btn" type="submit">สร้างหิ่งห้อยของฉัน ✦</button>
+        </form>
+      </div>
       <div class="msg" id="register-msg"></div>
     </section>
 

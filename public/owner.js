@@ -353,7 +353,6 @@ $('register-form').addEventListener('submit', async (e) => {
   }
 });
 
-$('show-restore').addEventListener('click', () => $('restore-form').classList.toggle('hidden'));
 
 $('restore-form').addEventListener('submit', async (e) => {
   e.preventDefault();
