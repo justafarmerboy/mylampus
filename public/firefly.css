@@ -30,6 +30,9 @@ a { color: var(--glow); }
 
 .leaflet-container { font-family: inherit; }
 
+/* Turn the daytime OSM map into a night map; fireflies live in other panes and keep their colours. */
+.leaflet-tile-pane { filter: invert(1) hue-rotate(200deg) brightness(0.75) contrast(1.1) saturate(0.45); }
+
 .topbar {
   position: fixed;
   top: 12px;

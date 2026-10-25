@@ -9,10 +9,10 @@ const MIN_ENERGY = 0.3;
 
 const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([13.7563, 100.5018], 13);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+// Standard OSM tiles (no API key); darkened in CSS to a night look.
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
-  subdomains: 'abcd',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
 
 const fireflies = new Map(); // id -> { truck, marker, el, seed, cur, target }
