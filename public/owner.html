@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mylampus — สำหรับเจ้าของร้าน</title>
+  <meta name="theme-color" content="#070b14">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/firefly.css">
+</head>
+<body>
+  <main class="owner">
+    <a href="/">← ดูแผนที่หิ่งห้อย</a>
+    <h1>🚚 ร้านของฉัน</h1>
+    <p class="sub">เปิดร้านแล้วหิ่งห้อยของคุณจะสว่างบนแผนที่ และดับลงเมื่อปิดร้านหรือครบเวลา</p>
+
+    <!-- Step 1: register -->
+    <section class="card hidden" id="register">
+      <h2>ลงทะเบียนร้าน</h2>
+      <form id="register-form">
+        <label for="name">ชื่อร้าน</label>
+        <input id="name" maxlength="60" required placeholder="เช่น ข้าวมันไก่ป้าแดง">
+        <label for="menu">เมนูเด่น / คำอธิบาย</label>
+        <textarea id="menu" maxlength="200" placeholder="เช่น ข้าวมันไก่ต้ม-ทอด, น้ำซุปฟรี"></textarea>
+        <label>สีแสงหิ่งห้อย</label>
+        <div class="swatches" id="swatches"></div>
+        <button class="btn" type="submit">สร้างหิ่งห้อยของฉัน ✦</button>
+      </form>
+      <div class="link-row"><span></span><button type="button" id="show-restore">มีรหัสร้านอยู่แล้ว?</button></div>
+      <form id="restore-form" class="hidden">
+        <label for="restore-code">รหัสร้าน (คัดลอกจากเครื่องเดิม)</label>
+        <input id="restore-code" placeholder="xxxxxxxxxxxx.yyyyyyyy…">
+        <button class="btn ghost" type="submit">เข้าสู่ร้าน</button>
+      </form>
+      <div class="msg" id="register-msg"></div>
+    </section>
+
+    <!-- Step 2: dashboard -->
+    <section class="hidden" id="dashboard">
+      <div class="card">
+        <div class="status" id="status">
+          <div class="dot"></div>
+          <div>
+            <div class="big" id="status-text">ปิดอยู่</div>
+            <div class="small" id="status-sub">หิ่งห้อยของคุณกำลังพักผ่อน</div>
+          </div>
+        </div>
+
+        <div id="open-controls">
+          <label for="duration">เปิดร้านนานเท่าไร</label>
+          <select id="duration">
+            <option value="30">30 นาที</option>
+            <option value="60">1 ชั่วโมง</option>
+            <option value="120">2 ชั่วโมง</option>
+            <option value="180" selected>3 ชั่วโมง</option>
+            <option value="240">4 ชั่วโมง</option>
+            <option value="360">6 ชั่วโมง</option>
+            <option value="480">8 ชั่วโมง</option>
+            <option value="720">12 ชั่วโมง</option>
+          </select>
+          <button class="btn" id="open-btn">เปิดร้าน — ปล่อยหิ่งห้อย ✦</button>
+        </div>
+
+        <div id="close-controls" class="hidden">
+          <button class="btn ghost" id="extend-btn">ต่อเวลา (นับใหม่ตามที่เลือกด้านบน)</button>
+          <button class="btn danger" id="close-btn">ปิดร้าน</button>
+        </div>
+
+        <div class="msg" id="msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>ข้อมูลร้าน</h2>
+        <form id="profile-form">
+          <label for="p-name">ชื่อร้าน</label>
+          <input id="p-name" maxlength="60" required>
+          <label for="p-menu">เมนูเด่น / คำอธิบาย</label>
+          <textarea id="p-menu" maxlength="200"></textarea>
+          <label>สีแสงหิ่งห้อย</label>
+          <div class="swatches" id="p-swatches"></div>
+          <button class="btn ghost" type="submit">บันทึก</button>
+        </form>
+        <div class="msg" id="profile-msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>รหัสร้าน</h2>
+        <p class="sub" style="margin:0">ใช้รหัสนี้เข้าร้านจากเครื่องอื่น เก็บไว้เป็นความลับ ใครมีรหัสนี้สามารถเปิด/ปิดร้านคุณได้</p>
+        <input id="code" readonly style="margin-top:10px">
+        <div class="link-row">
+          <button type="button" id="copy-code">คัดลอกรหัส</button>
+          <button type="button" id="logout">ออกจากเครื่องนี้</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/owner.js"></script>
+</body>
+</html>

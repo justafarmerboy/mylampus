@@ -1,0 +1,346 @@
+:root {
+  --night: #070b14;
+  --panel: rgba(12, 18, 32, 0.86);
+  --text: #eef3ff;
+  --muted: #9aa7c2;
+  --glow: #d4ff4f;
+  --border: rgba(255, 255, 255, 0.1);
+  --danger: #ff6b6b;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--night);
+  color: var(--text);
+  font-family: 'Prompt', 'Noto Sans Thai', system-ui, sans-serif;
+}
+
+a { color: var(--glow); }
+
+/* ---------- Map page ---------- */
+
+#map {
+  position: fixed;
+  inset: 0;
+  background: var(--night);
+}
+
+.leaflet-container { font-family: inherit; }
+
+.topbar {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.topbar > * { pointer-events: auto; }
+
+.brand, .counter, .btn-round {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.brand {
+  padding: 8px 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.brand span { color: var(--glow); text-shadow: 0 0 10px var(--glow); }
+
+.counter {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 10px 18px;
+  font-size: 14px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.counter b { color: var(--glow); }
+
+.btn-round {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.actions { display: flex; gap: 8px; }
+
+/* ---------- Firefly marker ---------- */
+
+.firefly-icon { background: none; border: none; }
+
+.firefly {
+  --c: var(--glow);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  will-change: transform;
+  cursor: pointer;
+}
+
+/* Soft halo */
+.firefly .halo {
+  position: absolute;
+  left: -36px;
+  top: -36px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c) 70%, transparent) 0%, color-mix(in srgb, var(--c) 25%, transparent) 35%, transparent 70%);
+  animation: pulse var(--pulse, 2.4s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.firefly .bug {
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  width: 28px;
+  height: 28px;
+  transform: rotate(var(--heading, 0deg));
+}
+
+.firefly .wing {
+  position: absolute;
+  top: 3px;
+  width: 11px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(220, 235, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  animation: flap 0.12s ease-in-out infinite alternate;
+}
+
+.firefly .wing.l { left: 2px; transform-origin: 100% 80%; }
+.firefly .wing.r { right: 2px; transform-origin: 0% 80%; animation-direction: alternate-reverse; }
+
+.firefly .head {
+  position: absolute;
+  left: 10px;
+  top: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2a2f3a;
+}
+
+.firefly .tail {
+  position: absolute;
+  left: 8px;
+  top: 10px;
+  width: 12px;
+  height: 15px;
+  border-radius: 45% 45% 50% 50%;
+  background: var(--c);
+  box-shadow: 0 0 8px 2px var(--c), 0 0 22px 6px color-mix(in srgb, var(--c) 60%, transparent);
+  animation: blink var(--pulse, 2.4s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.firefly .label {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(7, 11, 20, 0.7);
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+  pointer-events: none;
+}
+
+/* Brightness drops as closing time nears (set from JS). */
+.firefly .glow-wrap { opacity: var(--energy, 1); transition: opacity 2s linear; }
+
+.firefly.igniting .glow-wrap { animation: ignite 1.6s ease-out; }
+.firefly.dying { pointer-events: none; }
+.firefly.dying .glow-wrap { animation: die 2.2s ease-in forwards; }
+.firefly.dying .bug { animation: fall 2.2s ease-in forwards; }
+.firefly.dying .label { transition: opacity 1.5s; opacity: 0; }
+
+@keyframes pulse {
+  0%, 100% { transform: scale(0.75); opacity: 0.55; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
+@keyframes blink {
+  0%, 100% { filter: brightness(0.75); }
+  50% { filter: brightness(1.35); }
+}
+
+@keyframes flap {
+  from { transform: rotate(-25deg) scaleY(0.9); }
+  to { transform: rotate(18deg) scaleY(1.05); }
+}
+
+@keyframes ignite {
+  0% { opacity: 0; transform: scale(0.2); }
+  30% { opacity: 1; transform: scale(1.6); }
+  45% { opacity: 0.3; }
+  60% { opacity: 1; transform: scale(1); }
+  100% { opacity: var(--energy, 1); }
+}
+
+@keyframes die {
+  0% { opacity: 1; }
+  15% { opacity: 0.2; }
+  25% { opacity: 0.9; }
+  40% { opacity: 0.1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
+@keyframes fall {
+  0% { opacity: 1; }
+  60% { opacity: 0.6; }
+  100% { opacity: 0; transform: translateY(14px) rotate(var(--heading, 0deg)); }
+}
+
+/* ---------- Popup ---------- */
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+
+.truck-pop h3 { margin: 0 0 4px; font-size: 16px; }
+.truck-pop p { margin: 4px 0; color: var(--muted); font-size: 13px; }
+.truck-pop .left { color: var(--c, var(--glow)); font-weight: 600; }
+.truck-pop a.nav { display: inline-block; margin-top: 6px; }
+
+/* ---------- Owner page ---------- */
+
+.owner {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  min-height: 100%;
+  background: radial-gradient(ellipse at top, rgba(212, 255, 79, 0.08), transparent 60%);
+}
+
+.owner h1 { font-size: 22px; margin: 8px 0 4px; }
+.owner .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.card h2 { font-size: 16px; margin: 0 0 12px; }
+
+label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+
+input, textarea, select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font: inherit;
+}
+
+textarea { resize: vertical; min-height: 60px; }
+
+.swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  box-shadow: 0 0 12px var(--c);
+  background: var(--c);
+}
+
+.swatch[aria-pressed='true'] { border-color: #fff; }
+
+.btn {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  color: #0b1020;
+  background: var(--glow);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--glow) 50%, transparent);
+}
+
+.btn:disabled { opacity: 0.5; cursor: wait; }
+.btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); box-shadow: none; }
+.btn.danger { background: var(--danger); color: #fff; box-shadow: 0 0 24px rgba(255, 107, 107, 0.4); }
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.status .dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #333a48;
+  flex: none;
+}
+
+.status.on .dot {
+  background: var(--c, var(--glow));
+  box-shadow: 0 0 10px 3px var(--c, var(--glow));
+  animation: blink 2.4s ease-in-out infinite;
+}
+
+.status .big { font-size: 18px; font-weight: 600; }
+.status .small { font-size: 13px; color: var(--muted); }
+
+.msg { margin-top: 12px; font-size: 13px; color: var(--muted); min-height: 1em; }
+.msg.err { color: var(--danger); }
+
+.link-row { display: flex; justify-content: space-between; font-size: 13px; margin-top: 8px; }
+.link-row button { background: none; border: none; color: var(--muted); font: inherit; cursor: pointer; text-decoration: underline; padding: 0; }
+
+.hidden { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .firefly .halo, .firefly .tail, .firefly .wing { animation: none; }
+}

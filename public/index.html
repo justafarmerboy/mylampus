@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mylampus — หิ่งห้อยฟู้ดทรัค</title>
+  <meta name="theme-color" content="#070b14">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/firefly.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <div class="topbar">
+    <div class="brand"><span>✦</span> Mylampus</div>
+    <div class="actions">
+      <button class="btn-round" id="locate" title="ตำแหน่งของฉัน" aria-label="ตำแหน่งของฉัน">◎</button>
+      <a class="btn-round" href="/owner" title="สำหรับเจ้าของร้าน" aria-label="สำหรับเจ้าของร้าน">🚚</a>
+    </div>
+  </div>
+
+  <div class="counter" id="counter">กำลังมองหาหิ่งห้อย…</div>
+
+  <script src="/vendor/leaflet/leaflet.js"></script>
+  <script src="/map.js"></script>
+</body>
+</html>
