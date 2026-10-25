@@ -10,7 +10,12 @@ const crypto = require('node:crypto');
 
 const MIN_DURATION_MIN = 15;
 const MAX_DURATION_MIN = 60;
-const MAX_BODY_BYTES = 16 * 1024;
+const MAX_BODY_BYTES = 64 * 1024;
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const MAX_ITEMS = 50;
+const MAX_UPLOADS_PER_TRUCK = 80;
+const CATEGORIES = ['food', 'drink'];
+const UPLOAD_URL = /^\/uploads\/([a-f0-9]{24}\.(?:jpg|png|webp))$/;
 const SWEEP_INTERVAL_MS = 5000;
 const COLORS = ['#d4ff4f', '#ffd84f', '#ff9f4f', '#4fffb0', '#4fd8ff', '#ff6fd8'];
 
@@ -20,6 +25,8 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.webp': 'image/webp',
   '.ico': 'image/x-icon',
   '.txt': 'text/plain; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
@@ -98,6 +105,8 @@ function publicView(truck) {
     name: truck.name,
     menu: truck.menu,
     color: truck.color,
+    photo: truck.photo || null,
+    items: truck.items || [],
     lat: truck.lat,
     lng: truck.lng,
     openedAt: truck.openedAt,
@@ -121,6 +130,40 @@ function cleanText(value, field, maxLen, { required = false } = {}) {
   return text;
 }
 
+function cleanPhoto(value, truck) {
+  if (value == null || value === '') return null;
+  const match = typeof value === 'string' && value.match(UPLOAD_URL);
+  if (!match || !(truck.uploads || []).includes(match[1])) throw new HttpError(400, 'invalid photo');
+  return value;
+}
+
+function cleanItems(value, truck) {
+  if (!Array.isArray(value)) throw new HttpError(400, 'items must be a list');
+  if (value.length > MAX_ITEMS) throw new HttpError(400, `at most ${MAX_ITEMS} menu items`);
+  return value.map((item, i) => {
+    if (!item || typeof item !== 'object') throw new HttpError(400, `item ${i + 1} is invalid`);
+    const price = Number(item.price);
+    if (!Number.isFinite(price) || price < 0 || price > 100000) throw new HttpError(400, `item ${i + 1}: invalid price`);
+    return {
+      id: typeof item.id === 'string' && /^[\w-]{1,24}$/.test(item.id) ? item.id : crypto.randomBytes(4).toString('hex'),
+      name: cleanText(item.name, `item ${i + 1} name`, 60, { required: true }),
+      desc: cleanText(item.desc, `item ${i + 1} description`, 120),
+      price: Math.round(price * 100) / 100,
+      category: CATEGORIES.includes(item.category) ? item.category : 'food',
+      photo: cleanPhoto(item.photo, truck),
+      soldOut: Boolean(item.soldOut),
+    };
+  });
+}
+
+// Accept only real JPEG / PNG / WebP data (checked by magic bytes).
+function imageExt(buf) {
+  if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
+  if (buf.length > 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
+  if (buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+  return null;
+}
+
 function cleanCoords(body) {
   const lat = Number(body.lat);
   const lng = Number(body.lng);
@@ -137,33 +180,35 @@ function cleanDuration(value) {
   return minutes;
 }
 
-function readJson(req) {
+function readRaw(req, limit) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
     req.on('data', (chunk) => {
       size += chunk.length;
-      if (size > MAX_BODY_BYTES) {
+      if (size > limit) {
         reject(new HttpError(413, 'body too large'));
         req.destroy();
         return;
       }
       chunks.push(chunk);
     });
-    req.on('end', () => {
-      if (!chunks.length) return resolve({});
-      try {
-        const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-        if (!body || typeof body !== 'object' || Array.isArray(body)) {
-          return reject(new HttpError(400, 'body must be a JSON object'));
-        }
-        resolve(body);
-      } catch {
-        reject(new HttpError(400, 'invalid JSON'));
-      }
-    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
+async function readJson(req) {
+  const raw = await readRaw(req, MAX_BODY_BYTES);
+  if (!raw.length) return {};
+  let body;
+  try {
+    body = JSON.parse(raw.toString('utf8'));
+  } catch {
+    throw new HttpError(400, 'invalid JSON');
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new HttpError(400, 'body must be a JSON object');
+  return body;
 }
 
 function sendJson(res, status, data) {
@@ -180,7 +225,12 @@ function sendJson(res, status, data) {
 // App
 // ---------------------------------------------------------------------------
 
-function createApp({ dataFile = path.join(__dirname, 'data', 'trucks.json'), publicDir = path.join(__dirname, 'public'), now = Date.now } = {}) {
+function createApp({
+  dataFile = path.join(__dirname, 'data', 'trucks.json'),
+  publicDir = path.join(__dirname, 'public'),
+  uploadsDir = path.join(path.dirname(dataFile), 'uploads'),
+  now = Date.now,
+} = {}) {
   const store = new TruckStore(dataFile);
   const clients = new Set();
 
@@ -203,6 +253,16 @@ function createApp({ dataFile = path.join(__dirname, 'data', 'trucks.json'), pub
     for (const truck of store.all()) {
       if (truck.openUntil && truck.openUntil <= t) closeTruck(truck, 'expired');
     }
+  }
+
+  // Delete this truck's uploaded images that are no longer used anywhere.
+  function pruneUploads(truck) {
+    const used = new Set([truck.photo, ...(truck.items || []).map((i) => i.photo)]
+      .filter(Boolean).map((url) => url.match(UPLOAD_URL)[1]));
+    for (const name of truck.uploads || []) {
+      if (!used.has(name)) fs.rm(path.join(uploadsDir, name), { force: true }, () => {});
+    }
+    truck.uploads = [...used];
   }
 
   function authTruck(id, body) {
@@ -253,9 +313,28 @@ function createApp({ dataFile = path.join(__dirname, 'data', 'trucks.json'), pub
       if (body.name !== undefined) truck.name = cleanText(body.name, 'name', 60, { required: true });
       if (body.menu !== undefined) truck.menu = cleanText(body.menu, 'menu', 200);
       if (body.color !== undefined && COLORS.includes(body.color)) truck.color = body.color;
+      if (body.photo !== undefined) truck.photo = cleanPhoto(body.photo, truck);
+      if (body.items !== undefined) truck.items = cleanItems(body.items, truck);
+      pruneUploads(truck);
       store.save();
       if (isOpen(truck, now())) broadcast('update', publicView(truck));
       return { truck: publicView(truck) };
+    }],
+
+    // Raw image body; token in the X-Token header. Returns a URL to use as a photo.
+    ['POST', /^\/api\/trucks\/([\w-]+)\/upload$/, async (req, id) => {
+      const truck = authTruck(id, { token: req.headers['x-token'] });
+      truck.uploads = truck.uploads || [];
+      if (truck.uploads.length >= MAX_UPLOADS_PER_TRUCK) throw new HttpError(429, 'too many images, save your menu first');
+      const buf = await readRaw(req, MAX_IMAGE_BYTES);
+      const ext = imageExt(buf);
+      if (!ext) throw new HttpError(415, 'only JPEG, PNG or WebP images');
+      const name = `${crypto.randomBytes(12).toString('hex')}.${ext}`;
+      await fs.promises.mkdir(uploadsDir, { recursive: true });
+      await fs.promises.writeFile(path.join(uploadsDir, name), buf);
+      truck.uploads.push(name);
+      store.save();
+      return [201, { url: `/uploads/${name}` }];
     }],
 
     // Light up (or extend) the firefly.
@@ -313,8 +392,9 @@ function createApp({ dataFile = path.join(__dirname, 'data', 'trucks.json'), pub
     let pathname = decodeURIComponent(url.pathname);
     if (pathname === '/') pathname = '/index.html';
     if (pathname === '/owner') pathname = '/owner.html';
-    const file = path.normalize(path.join(publicDir, pathname));
-    if (!file.startsWith(publicDir + path.sep)) throw new HttpError(404, 'not found');
+    const upload = pathname.match(UPLOAD_URL);
+    const file = upload ? path.join(uploadsDir, upload[1]) : path.normalize(path.join(publicDir, pathname));
+    if (!upload && !file.startsWith(publicDir + path.sep)) throw new HttpError(404, 'not found');
     fs.stat(file, (err, stat) => {
       if (err || !stat.isFile()) {
         res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -324,7 +404,8 @@ function createApp({ dataFile = path.join(__dirname, 'data', 'trucks.json'), pub
       res.writeHead(200, {
         'Content-Type': MIME[path.extname(file)] || 'application/octet-stream',
         'Content-Length': stat.size,
-        'Cache-Control': 'no-cache',
+        // Uploaded file names are random and never reused, so they can be cached for good.
+        'Cache-Control': upload ? 'public, max-age=31536000, immutable' : 'no-cache',
       });
       if (req.method === 'HEAD') return res.end();
       fs.createReadStream(file).pipe(res);

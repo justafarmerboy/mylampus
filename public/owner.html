@@ -70,16 +70,26 @@
       <div class="card">
         <h2>ข้อมูลร้าน</h2>
         <form id="profile-form">
+          <label>รูปหน้าร้าน</label>
+          <button type="button" class="cover-pick" id="p-cover"><span>📷 เพิ่มรูปหน้าร้าน</span></button>
           <label for="p-name">ชื่อร้าน</label>
           <input id="p-name" maxlength="60" required>
           <label for="p-menu">เมนูเด่น / คำอธิบาย</label>
           <textarea id="p-menu" maxlength="200"></textarea>
           <label>สีแสงหิ่งห้อย</label>
           <div class="swatches" id="p-swatches"></div>
-          <button class="btn ghost" type="submit">บันทึก</button>
+
+          <h2 class="menu-head">เมนูอาหาร &amp; เครื่องดื่ม</h2>
+          <div id="items"></div>
+          <div class="add-row">
+            <button type="button" class="btn ghost" data-add="food">+ อาหาร</button>
+            <button type="button" class="btn ghost" data-add="drink">+ เครื่องดื่ม</button>
+          </div>
+          <button class="btn" type="submit">บันทึกข้อมูลร้านและเมนู</button>
         </form>
         <div class="msg" id="profile-msg"></div>
       </div>
+      <input type="file" id="file" accept="image/*" class="hidden">
 
       <div class="card">
         <h2>รหัสร้าน</h2>

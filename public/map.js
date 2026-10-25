@@ -44,15 +44,64 @@ function energyFor(truck) {
   return Math.max(MIN_ENERGY, MIN_ENERGY + (1 - MIN_ENERGY) * (leftMin / DIM_START_MIN));
 }
 
-function popupHtml(truck) {
-  const nav = `https://www.google.com/maps/dir/?api=1&destination=${truck.lat},${truck.lng}`;
-  return `<div class="truck-pop" style="--c:${truck.color}">
-    <h3>${escapeHtml(truck.name)}</h3>
-    ${truck.menu ? `<p>${escapeHtml(truck.menu)}</p>` : ''}
-    <p>เปิดถึง ${formatClock(truck.openUntil)} · <span class="left" data-left="${truck.id}">${formatLeft(truck.openUntil - serverNow())}</span></p>
-    <a class="nav" href="${nav}" target="_blank" rel="noopener">นำทางไปที่ร้าน →</a>
-  </div>`;
+function formatPrice(n) {
+  return `฿${Number(n).toLocaleString('th-TH', { maximumFractionDigits: 2 })}`;
 }
+
+function menuSection(title, list) {
+  if (!list.length) return '';
+  return `<h3>${title}</h3>` + list.map((i) => `
+    <div class="menu-item${i.soldOut ? ' sold-out' : ''}">
+      ${i.photo ? `<img src="${escapeHtml(i.photo)}" alt="" loading="lazy">` : ''}
+      <div class="info">
+        <div class="name">${escapeHtml(i.name)}</div>
+        ${i.desc ? `<div class="desc">${escapeHtml(i.desc)}</div>` : ''}
+      </div>
+      <div class="price">${formatPrice(i.price)}</div>
+    </div>`).join('');
+}
+
+function sheetHtml(truck) {
+  const nav = `https://www.google.com/maps/dir/?api=1&destination=${truck.lat},${truck.lng}`;
+  const items = truck.items || [];
+  return `
+    <button class="close-x" data-close aria-label="ปิด">✕</button>
+    ${truck.photo ? `<img class="cover" src="${escapeHtml(truck.photo)}" alt="">` : ''}
+    <div class="body">
+      <h2>${escapeHtml(truck.name)}</h2>
+      ${truck.menu ? `<p class="about">${escapeHtml(truck.menu)}</p>` : ''}
+      <div class="when">เปิดถึง ${formatClock(truck.openUntil)} · <b data-left="${truck.id}">${formatLeft(truck.openUntil - serverNow())}</b></div>
+      ${menuSection('🍜 อาหาร', items.filter((i) => i.category !== 'drink'))}
+      ${menuSection('🧋 เครื่องดื่ม', items.filter((i) => i.category === 'drink'))}
+      <a class="btn nav" href="${nav}" target="_blank" rel="noopener">นำทางไปที่ร้าน →</a>
+    </div>`;
+}
+
+// ---------- Shop sheet ----------
+
+const sheet = document.getElementById('sheet');
+let sheetId = null;
+
+function openSheet(id) {
+  const ff = fireflies.get(id);
+  if (!ff) return;
+  sheetId = id;
+  sheet.style.setProperty('--c', ff.truck.color);
+  sheet.innerHTML = sheetHtml(ff.truck);
+  sheet.scrollTop = 0;
+  sheet.classList.add('open');
+  sheet.setAttribute('aria-hidden', 'false');
+}
+
+function closeSheet() {
+  sheetId = null;
+  sheet.classList.remove('open');
+  sheet.setAttribute('aria-hidden', 'true');
+}
+
+sheet.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) closeSheet(); });
+map.on('click', closeSheet);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 
 function fireflyHtml(truck, seed) {
   return `<div class="firefly igniting" style="--c:${truck.color};--pulse:${(1.8 + seed.p * 1.4).toFixed(2)}s;--delay:-${(seed.p * 2).toFixed(2)}s">
@@ -71,7 +120,12 @@ function upsert(truck) {
   if (existing && !existing.dying) {
     existing.truck = truck;
     existing.target = [truck.lat, truck.lng];
-    existing.marker.setPopupContent(popupHtml(truck));
+    if (sheetId === truck.id) {
+      const scroll = sheet.scrollTop;
+      sheet.style.setProperty('--c', truck.color);
+      sheet.innerHTML = sheetHtml(truck);
+      sheet.scrollTop = scroll;
+    }
     existing.el.querySelector('.label').textContent = truck.name;
     existing.el.style.setProperty('--c', truck.color);
     return;
@@ -90,7 +144,7 @@ function upsert(truck) {
   };
   const icon = L.divIcon({ className: 'firefly-icon', html: fireflyHtml(truck, seed), iconSize: [0, 0] });
   const marker = L.marker([truck.lat, truck.lng], { icon, keyboard: true, title: truck.name, riseOnHover: true })
-    .bindPopup(popupHtml(truck), { offset: [0, -10] })
+    .on('click', () => openSheet(truck.id))
     .addTo(map);
   const el = marker.getElement().querySelector('.firefly');
   el.addEventListener('animationend', () => el.classList.remove('igniting'), { once: true });
@@ -101,7 +155,7 @@ function extinguish(id) {
   const ff = fireflies.get(id);
   if (!ff || ff.dying) return;
   ff.dying = true;
-  ff.marker.closePopup();
+  if (sheetId === id) closeSheet();
   ff.el.classList.add('dying');
   setTimeout(() => removeNow(id), 2300);
   updateCounter();

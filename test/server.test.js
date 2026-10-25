@@ -125,3 +125,45 @@ test('serves pages and blocks path traversal', async (t) => {
   assert.equal((await fetch(`${app.base}/owner`)).status, 200);
   assert.equal((await fetch(`${app.base}/..%2fserver.js`)).status, 404);
 });
+
+const PNG = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex');
+
+test('menu items with photos', async (t) => {
+  const app = await start();
+  t.after(app.stop);
+  const { id, token } = (await app.post('/api/trucks', { name: 'E' })).body;
+  const upload = (buf, tok = token) => fetch(`${app.base}/api/trucks/${id}/upload`, {
+    method: 'POST', headers: { 'X-Token': tok, 'Content-Type': 'image/png' }, body: buf,
+  });
+
+  assert.equal((await upload(PNG, 'bad')).status, 403);
+  assert.equal((await upload(Buffer.from('<svg/>'))).status, 415, 'non-images rejected');
+  const up = await (await upload(PNG)).json();
+  assert.match(up.url, /^\/uploads\/[a-f0-9]{24}\.png$/);
+  const img = await fetch(app.base + up.url);
+  assert.equal(img.status, 200);
+  assert.equal(img.headers.get('content-type'), 'image/png');
+
+  const saved = await app.post(`/api/trucks/${id}/profile`, {
+    token,
+    photo: up.url,
+    items: [
+      { name: 'ข้าวมันไก่', price: '50', category: 'food', photo: up.url },
+      { name: 'ชาเย็น', price: 25, category: 'drink', soldOut: true },
+    ],
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.truck.photo, up.url);
+  assert.deepEqual(saved.body.truck.items.map((i) => [i.name, i.price, i.category, i.soldOut]),
+    [['ข้าวมันไก่', 50, 'food', false], ['ชาเย็น', 25, 'drink', true]]);
+
+  // Photos must be this truck's own uploads; prices must be sane.
+  assert.equal((await app.post(`/api/trucks/${id}/profile`, { token, photo: '/uploads/aaaaaaaaaaaaaaaaaaaaaaaa.png' })).status, 400);
+  assert.equal((await app.post(`/api/trucks/${id}/profile`, { token, items: [{ name: 'x', price: -1 }] })).status, 400);
+  assert.equal((await app.post(`/api/trucks/${id}/profile`, { token, items: [{ name: '', price: 1 }] })).status, 400);
+
+  // Removing the photos deletes the files.
+  await app.post(`/api/trucks/${id}/profile`, { token, photo: null, items: [] });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal((await fetch(app.base + up.url)).status, 404);
+});

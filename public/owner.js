@@ -140,7 +140,136 @@ function fillProfile() {
   $('p-menu').value = truck.menu || '';
   profileColor = truck.color;
   makeSwatches($('p-swatches'), truck.color, (c) => { profileColor = c; });
+  coverPhoto = truck.photo || null;
+  showPhoto($('p-cover'), coverPhoto);
+  items = (truck.items || []).map((i) => ({ ...i }));
+  renderItems();
   $('code').value = `${creds.id}.${creds.token}`;
+}
+
+// ---------- Photos & menu items ----------
+
+let coverPhoto = null;
+let items = [];
+let pickPhoto = null; // callback for the shared file input
+
+function showPhoto(el, url) {
+  el.style.backgroundImage = url ? `url("${url}")` : '';
+  el.classList.toggle('has-photo', Boolean(url));
+}
+
+// Shrink to at most 1024 px and re-encode as JPEG so uploads stay small.
+async function resizeImage(file, max = 1024) {
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error('อ่านไฟล์รูปไม่ได้'));
+    i.src = URL.createObjectURL(file);
+  });
+  const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.naturalWidth * scale);
+  canvas.height = Math.round(img.naturalHeight * scale);
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  URL.revokeObjectURL(img.src);
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+}
+
+async function uploadImage(file) {
+  const blob = await resizeImage(file);
+  const res = await fetch(`/api/trucks/${creds.id}/upload`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'image/jpeg', 'X-Token': creds.token },
+    body: blob,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data.url;
+}
+
+function choosePhoto(onUrl) {
+  pickPhoto = onUrl;
+  $('file').value = '';
+  $('file').click();
+}
+
+$('file').addEventListener('change', async () => {
+  const file = $('file').files[0];
+  if (!file || !pickPhoto) return;
+  const done = pickPhoto;
+  pickPhoto = null;
+  setMsg('profile-msg', 'กำลังอัปโหลดรูป…');
+  try {
+    done(await uploadImage(file));
+    setMsg('profile-msg', 'อัปโหลดแล้ว อย่าลืมกดบันทึก');
+  } catch (err) {
+    setMsg('profile-msg', err.message, true);
+  }
+});
+
+$('p-cover').addEventListener('click', () => {
+  if (coverPhoto && confirm('ลบรูปหน้าร้าน? (กด Cancel เพื่อเปลี่ยนรูป)')) {
+    coverPhoto = null;
+    showPhoto($('p-cover'), null);
+    return;
+  }
+  choosePhoto((url) => { coverPhoto = url; showPhoto($('p-cover'), url); });
+});
+
+function renderItems() {
+  const box = $('items');
+  box.innerHTML = '';
+  if (!items.length) {
+    box.innerHTML = '<div class="empty-items">ยังไม่มีเมนู กดปุ่มด้านล่างเพื่อเพิ่ม</div>';
+    return;
+  }
+  items.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'item';
+    row.innerHTML = `
+      <button type="button" class="thumb" aria-label="รูปเมนู">📷</button>
+      <input class="name" maxlength="60" placeholder="ชื่อเมนู" required>
+      <input class="price" type="number" min="0" step="any" inputmode="decimal" placeholder="ราคา ฿" required>
+      <input class="desc" maxlength="120" placeholder="รายละเอียด (ไม่บังคับ)">
+      <div class="row">
+        <select class="cat"><option value="food">🍜 อาหาร</option><option value="drink">🧋 เครื่องดื่ม</option></select>
+        <label><input type="checkbox" class="sold"> หมดแล้ว</label>
+        <button type="button" class="del">ลบ</button>
+      </div>`;
+    const q = (s) => row.querySelector(s);
+    q('.name').value = item.name || '';
+    q('.price').value = item.price ?? '';
+    q('.desc').value = item.desc || '';
+    q('.cat').value = item.category || 'food';
+    q('.sold').checked = Boolean(item.soldOut);
+    showPhoto(q('.thumb'), item.photo);
+    q('.name').addEventListener('input', (e) => { item.name = e.target.value; });
+    q('.price').addEventListener('input', (e) => { item.price = e.target.value; });
+    q('.desc').addEventListener('input', (e) => { item.desc = e.target.value; });
+    q('.cat').addEventListener('change', (e) => { item.category = e.target.value; });
+    q('.sold').addEventListener('change', (e) => { item.soldOut = e.target.checked; });
+    q('.thumb').addEventListener('click', () => {
+      if (item.photo && confirm('ลบรูปเมนูนี้? (กด Cancel เพื่อเปลี่ยนรูป)')) {
+        item.photo = null;
+        showPhoto(q('.thumb'), null);
+        return;
+      }
+      choosePhoto((url) => { item.photo = url; showPhoto(q('.thumb'), url); });
+    });
+    q('.del').addEventListener('click', () => {
+      items.splice(idx, 1);
+      renderItems();
+    });
+    box.appendChild(row);
+  });
+}
+
+for (const btn of document.querySelectorAll('[data-add]')) {
+  btn.addEventListener('click', () => {
+    items.push({ name: '', price: '', desc: '', category: btn.dataset.add, photo: null, soldOut: false });
+    renderItems();
+    $('items').lastElementChild.querySelector('.name').focus();
+  });
 }
 
 // ---------- Location sharing ----------
@@ -283,10 +412,13 @@ $('profile-form').addEventListener('submit', async (e) => {
       name: $('p-name').value,
       menu: $('p-menu').value,
       color: profileColor,
+      photo: coverPhoto,
+      items: items.map((i) => ({ ...i, price: Number(i.price) })),
     });
     truck = data.truck;
+    fillProfile();
     render();
-    setMsg('profile-msg', 'บันทึกแล้ว');
+    setMsg('profile-msg', open ? 'บันทึกแล้ว ลูกค้าเห็นเมนูใหม่ทันที ✦' : 'บันทึกแล้ว');
   } catch (err) {
     setMsg('profile-msg', err.message, true);
   }
