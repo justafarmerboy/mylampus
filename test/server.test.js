@@ -167,3 +167,15 @@ test('menu items with photos', async (t) => {
   await new Promise((r) => setTimeout(r, 50));
   assert.equal((await fetch(app.base + up.url)).status, 404);
 });
+
+test('locatedAt tracks the last GPS report', async (t) => {
+  let clock = 5_000_000;
+  const app = await start({ now: () => clock });
+  t.after(app.stop);
+  const { id, token } = (await app.post('/api/trucks', { name: 'F' })).body;
+  await app.post(`/api/trucks/${id}/open`, { token, durationMin: 60, ...BKK });
+  assert.equal((await app.get('/api/trucks')).body.trucks[0].locatedAt, 5_000_000);
+  clock += 7 * 60 * 1000;
+  await app.post(`/api/trucks/${id}/location`, { token, ...BKK });
+  assert.equal((await app.get('/api/trucks')).body.trucks[0].locatedAt, clock);
+});

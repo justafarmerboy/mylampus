@@ -6,6 +6,9 @@
 const WANDER_PX = 28;          // how far a firefly drifts from its true spot
 const DIM_START_MIN = 15;      // starts dimming this many minutes before closing
 const MIN_ENERGY = 0.3;
+const LIVE_MIN = 2;            // position younger than this counts as live
+const STALE_MIN = 5;           // older than this: firefly slows down and shows its age
+const STALE_SPEED = 0.25;      // wandering speed of a stale firefly
 
 const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([13.7563, 100.5018], 13);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -44,6 +47,37 @@ function energyFor(truck) {
   return Math.max(MIN_ENERGY, MIN_ENERGY + (1 - MIN_ENERGY) * (leftMin / DIM_START_MIN));
 }
 
+function locatedMin(truck) {
+  return Math.max(0, (serverNow() - truck.locatedAt) / 60000);
+}
+
+function formatAgo(min) {
+  if (min < 60) return `${Math.floor(min)} นาทีที่แล้ว`;
+  return `${Math.floor(min / 60)} ชม. ${Math.floor(min % 60)} นาทีที่แล้ว`;
+}
+
+function locationText(truck) {
+  const min = locatedMin(truck);
+  if (min < LIVE_MIN) return '📍 ตำแหน่งสด อัปเดตต่อเนื่อง';
+  if (min < STALE_MIN) return `📍 ตำแหน่งอัปเดตเมื่อ ${formatAgo(min)}`;
+  return `⚠️ ตำแหน่งอาจไม่ตรง — อัปเดตล่าสุด ${formatAgo(min)}`;
+}
+
+// Refresh everything that depends on how old the position is.
+function updateFreshness(ff) {
+  const min = locatedMin(ff.truck);
+  const stale = min >= STALE_MIN;
+  ff.stale = stale;
+  ff.el.classList.toggle('stale', stale);
+  ff.el.querySelector('.label').dataset.age = stale ? ` · 📍 ${Math.floor(min)} น.` : '';
+  const loc = document.querySelector(`[data-loc="${ff.truck.id}"]`);
+  if (loc) {
+    loc.textContent = locationText(ff.truck);
+    loc.classList.toggle('stale', stale);
+    loc.classList.toggle('live', min < LIVE_MIN);
+  }
+}
+
 function formatPrice(n) {
   return `฿${Number(n).toLocaleString('th-TH', { maximumFractionDigits: 2 })}`;
 }
@@ -71,6 +105,7 @@ function sheetHtml(truck) {
       <h2>${escapeHtml(truck.name)}</h2>
       ${truck.menu ? `<p class="about">${escapeHtml(truck.menu)}</p>` : ''}
       <div class="when">เปิดถึง ${formatClock(truck.openUntil)} · <b data-left="${truck.id}">${formatLeft(truck.openUntil - serverNow())}</b></div>
+      <div class="loc" data-loc="${truck.id}">${locationText(truck)}</div>
       ${menuSection('🍜 อาหาร', items.filter((i) => i.category !== 'drink'))}
       ${menuSection('🧋 เครื่องดื่ม', items.filter((i) => i.category === 'drink'))}
       <a class="btn nav" href="${nav}" target="_blank" rel="noopener">นำทางไปที่ร้าน →</a>
@@ -128,6 +163,7 @@ function upsert(truck) {
     }
     existing.el.querySelector('.label').textContent = truck.name;
     existing.el.style.setProperty('--c', truck.color);
+    updateFreshness(existing);
     return;
   }
   if (existing) removeNow(truck.id);
@@ -148,7 +184,9 @@ function upsert(truck) {
     .addTo(map);
   const el = marker.getElement().querySelector('.firefly');
   el.addEventListener('animationend', () => el.classList.remove('igniting'), { once: true });
-  fireflies.set(truck.id, { truck, marker, el, seed, cur: [truck.lat, truck.lng], target: [truck.lat, truck.lng], prev: null });
+  const ff = { truck, marker, el, seed, cur: [truck.lat, truck.lng], target: [truck.lat, truck.lng], prev: null, phase: 0, speed: 1 };
+  fireflies.set(truck.id, ff);
+  updateFreshness(ff);
 }
 
 function extinguish(id) {
@@ -177,8 +215,17 @@ function updateCounter() {
 
 // ---------- Flight loop ----------
 
-function frame(t) {
+let lastFrame = null;
+
+function frame(now) {
+  const dt = lastFrame == null ? 0 : Math.min(now - lastFrame, 100);
+  lastFrame = now;
   for (const ff of fireflies.values()) {
+    // Each firefly keeps its own clock so it can slow down smoothly when its position gets old.
+    ff.speed += ((ff.stale ? STALE_SPEED : 1) - ff.speed) * 0.02;
+    ff.phase += dt * ff.speed;
+    const t = ff.phase;
+
     // Glide toward the latest real position when the truck moves.
     ff.cur[0] += (ff.target[0] - ff.cur[0]) * 0.04;
     ff.cur[1] += (ff.target[1] - ff.cur[1]) * 0.04;
@@ -215,6 +262,7 @@ setInterval(() => {
       continue;
     }
     ff.el.style.setProperty('--energy', energyFor(ff.truck).toFixed(2));
+    updateFreshness(ff);
     const left = document.querySelector(`[data-left="${ff.truck.id}"]`);
     if (left) left.textContent = formatLeft(ff.truck.openUntil - serverNow());
   }

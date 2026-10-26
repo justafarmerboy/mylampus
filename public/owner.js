@@ -6,6 +6,7 @@ const COLORS = ['#d4ff4f', '#ffd84f', '#ff9f4f', '#4fffb0', '#4fd8ff', '#ff6fd8'
 const STORAGE_KEY = 'mylampus.owner';
 const SEND_EVERY_MS = 15000;   // at most one location update per 15 s…
 const SEND_MIN_METERS = 20;    // …unless the truck moved further than this
+const HEARTBEAT_MS = 60000;    // confirm the position at least this often, even when parked
 
 const $ = (id) => document.getElementById(id);
 
@@ -14,6 +15,7 @@ let truck = null;
 let open = false;
 let clockSkew = 0;
 let watchId = null;
+let heartbeat = null;
 let lastSent = null;           // { lat, lng, at }
 let wakeLock = null;
 
@@ -274,9 +276,9 @@ for (const btn of document.querySelectorAll('[data-add]')) {
 
 // ---------- Location sharing ----------
 
-async function sendLocation(pos) {
+async function sendLocation(pos, force = false) {
   const now = Date.now();
-  if (lastSent && now - lastSent.at < SEND_EVERY_MS && distanceMeters(lastSent, pos) < SEND_MIN_METERS) return;
+  if (!force && lastSent && now - lastSent.at < SEND_EVERY_MS && distanceMeters(lastSent, pos) < SEND_MIN_METERS) return;
   lastSent = { ...pos, at: now };
   try {
     const data = await api(`/api/trucks/${creds.id}/location`, { token: creds.token, ...pos });
@@ -293,12 +295,20 @@ function startSharing() {
     () => setMsg('msg', 'สัญญาณ GPS ขาดหาย — หิ่งห้อยจะอยู่ที่ตำแหน่งล่าสุด', true),
     { enableHighAccuracy: true, maximumAge: 5000 },
   );
+  // A parked phone may not report new positions, so tell customers "still here" every minute.
+  heartbeat = setInterval(() => {
+    if (document.visibilityState === 'visible' && lastSent && Date.now() - lastSent.at >= HEARTBEAT_MS) {
+      getPosition().then((pos) => sendLocation(pos, true)).catch(() => {});
+    }
+  }, 15000);
   requestWakeLock();
 }
 
 function stopSharing() {
   if (watchId != null) navigator.geolocation.clearWatch(watchId);
   watchId = null;
+  clearInterval(heartbeat);
+  heartbeat = null;
   lastSent = null;
   if (wakeLock) wakeLock.release().catch(() => {});
   wakeLock = null;
@@ -317,7 +327,7 @@ async function requestWakeLock() {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && open) {
     requestWakeLock();
-    getPosition().then(sendLocation).catch(() => {});
+    getPosition().then((pos) => sendLocation(pos, true)).catch(() => {});
   }
 });
 

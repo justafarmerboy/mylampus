@@ -111,6 +111,8 @@ function publicView(truck) {
     lng: truck.lng,
     openedAt: truck.openedAt,
     openUntil: truck.openUntil,
+    // When the owner's phone last reported its position (older trucks: fall back to opening time).
+    locatedAt: truck.locatedAt || truck.openedAt,
   };
 }
 
@@ -347,6 +349,7 @@ function createApp({
       if (!isOpen(truck, t)) truck.openedAt = t;
       truck.lat = lat;
       truck.lng = lng;
+      truck.locatedAt = t;
       truck.openUntil = t + minutes * 60 * 1000;
       store.save();
       broadcast('update', publicView(truck));
@@ -360,6 +363,7 @@ function createApp({
       const { lat, lng } = cleanCoords(body);
       truck.lat = lat;
       truck.lng = lng;
+      truck.locatedAt = now();
       store.save();
       broadcast('update', publicView(truck));
       return { truck: publicView(truck) };

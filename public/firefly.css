@@ -452,3 +452,13 @@ textarea { resize: vertical; min-height: 60px; }
 .menu-item .price { font-weight: 600; white-space: nowrap; }
 .menu-item.sold-out { opacity: 0.45; }
 .menu-item.sold-out .price::after { content: ' · หมด'; font-weight: 400; font-size: 12px; }
+
+/* ---------- Position freshness ---------- */
+
+.firefly .label::after { content: attr(data-age); color: var(--muted); }
+.firefly.stale .wing { animation-duration: 0.35s; }
+.firefly.stale .halo { animation-duration: 4.5s; }
+
+.sheet .loc { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.sheet .loc.live { color: #7dffb2; }
+.sheet .loc.stale { color: #ffb84f; }
