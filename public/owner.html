@@ -6,13 +6,22 @@
   <title>Mylampus — สำหรับเจ้าของร้าน</title>
   <meta name="theme-color" content="#070b14">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mylampus">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="/firefly.css">
 </head>
 <body>
   <main class="owner">
-    <a href="/">← ดูแผนที่หิ่งห้อย</a>
+    <div class="owner-top">
+      <a href="/">← ดูแผนที่หิ่งห้อย</a>
+      <button class="install-link hidden" id="install" type="button">⤓ ติดตั้งแอป</button>
+    </div>
     <h1>🚚 ร้านของฉัน</h1>
     <p class="sub">เปิดร้านแล้วหิ่งห้อยของคุณจะสว่างบนแผนที่ และดับลงเมื่อปิดร้านหรือครบเวลา</p>
 
@@ -109,6 +118,17 @@
     </section>
   </main>
 
+  <div class="install-tip hidden" id="install-tip" role="dialog" aria-label="วิธีติดตั้งแอป">
+    <b>ติดตั้ง Mylampus บน iPhone</b>
+    <ol>
+      <li>เปิดหน้านี้ใน <b>Safari</b></li>
+      <li>กดปุ่ม <b>แชร์</b> (สี่เหลี่ยมมีลูกศรชี้ขึ้น)</li>
+      <li>เลือก <b>เพิ่มไปยังหน้าจอโฮม</b></li>
+    </ol>
+    <small>แตะเพื่อปิด</small>
+  </div>
+
   <script src="/owner.js"></script>
+  <script src="/pwa.js"></script>
 </body>
 </html>

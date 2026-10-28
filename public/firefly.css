@@ -462,3 +462,43 @@ textarea { resize: vertical; min-height: 60px; }
 .sheet .loc { font-size: 13px; color: var(--muted); margin-top: 4px; }
 .sheet .loc.live { color: #7dffb2; }
 .sheet .loc.stale { color: #ffb84f; }
+
+/* ---------- Install (PWA) ---------- */
+
+.owner-top { display: flex; justify-content: space-between; align-items: center; }
+
+.install-link {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: var(--glow);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.install-tip {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  top: 72px;
+  z-index: 1200;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.install-tip ol { margin: 8px 0; padding-left: 20px; line-height: 1.7; }
+.install-tip small { color: var(--muted); }
+
+/* Room for the iPhone status bar when launched from the home screen. */
+@media (display-mode: standalone) {
+  .topbar { top: calc(12px + env(safe-area-inset-top)); }
+  .owner { padding-top: calc(24px + env(safe-area-inset-top)); }
+}
