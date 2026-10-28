@@ -1,6 +1,6 @@
 'use strict';
 
-// Mylampus — food truck fireflies.
+// LAMPUS — food truck fireflies.
 // A zero-dependency Node server: REST API for owners, Server-Sent Events for the map.
 
 const http = require('node:http');
@@ -564,6 +564,6 @@ if (require.main === module) {
   const port = Number(process.env.PORT) || 3000;
   const { server } = createApp({ dataFile: process.env.DATA_FILE || undefined });
   server.listen(port, () => {
-    console.log(`🪲 Mylampus fireflies on http://localhost:${port}  (owner: /owner)`);
+    console.log(`🪲 LAMPUS fireflies on http://localhost:${port}  (owner: /owner)`);
   });
 }
