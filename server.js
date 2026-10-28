@@ -15,6 +15,10 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const MAX_ITEMS = 50;
 const MAX_UPLOADS_PER_TRUCK = 80;
 const CATEGORIES = ['food', 'drink'];
+const FEEDBACK_KINDS = ['idea', 'bug', 'other'];
+const MAX_FEEDBACK = 2000;               // oldest messages are dropped beyond this
+const FEEDBACK_PER_IP = 5;               // at most this many messages…
+const FEEDBACK_WINDOW_MS = 10 * 60 * 1000; // …per IP in this window
 const UPLOAD_URL = /^\/uploads\/([a-f0-9]{24}\.(?:jpg|png|webp))$/;
 const SWEEP_INTERVAL_MS = 5000;
 const COLORS = ['#d4ff4f', '#ffd84f', '#ff9f4f', '#4fffb0', '#4fd8ff', '#ff6fd8'];
@@ -85,6 +89,47 @@ class TruckStore {
 
 function hashToken(token) {
   return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
+// Feedback messages to the app's creator, newest first, in their own JSON file.
+class FeedbackStore {
+  constructor(file) {
+    this.file = file;
+    this.items = [];
+    if (file && fs.existsSync(file)) {
+      try {
+        this.items = JSON.parse(fs.readFileSync(file, 'utf8'));
+      } catch (err) {
+        console.error(`Could not read ${file}:`, err.message);
+      }
+    }
+  }
+
+  save() {
+    if (!this.file) return;
+    fs.mkdirSync(path.dirname(this.file), { recursive: true });
+    const tmp = `${this.file}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(this.items, null, 2));
+    fs.renameSync(tmp, this.file);
+  }
+
+  add(item) {
+    this.items.unshift(item);
+    this.items.length = Math.min(this.items.length, MAX_FEEDBACK);
+    this.save();
+  }
+}
+
+function secretMatches(expected, given) {
+  if (!expected || typeof given !== 'string') return false;
+  const a = crypto.createHash('sha256').update(expected).digest();
+  const b = crypto.createHash('sha256').update(given).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+function clientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  return (typeof fwd === 'string' && fwd.split(',')[0].trim()) || req.socket.remoteAddress || '';
 }
 
 function tokenMatches(truck, token) {
@@ -231,9 +276,18 @@ function createApp({
   dataFile = path.join(__dirname, 'data', 'trucks.json'),
   publicDir = path.join(__dirname, 'public'),
   uploadsDir = path.join(path.dirname(dataFile), 'uploads'),
+  feedbackFile = path.join(path.dirname(dataFile), 'feedback.json'),
+  adminKey = process.env.ADMIN_KEY,
   now = Date.now,
 } = {}) {
   const store = new TruckStore(dataFile);
+  const feedback = new FeedbackStore(feedbackFile);
+  const feedbackHits = new Map(); // ip -> recent timestamps
+
+  function authAdmin(body) {
+    if (!adminKey) throw new HttpError(503, 'admin is not set up (ADMIN_KEY missing)');
+    if (!secretMatches(adminKey, body.key)) throw new HttpError(403, 'wrong admin key');
+  }
   const clients = new Set();
 
   function broadcast(event, data) {
@@ -375,6 +429,46 @@ function createApp({
       return { ok: true };
     }],
 
+    // Anyone can send feedback to the creator; rate-limited per IP.
+    ['POST', /^\/api\/feedback$/, async (req) => {
+      const body = await readJson(req);
+      const message = cleanText(body.message, 'message', 1000, { required: true });
+      const t = now();
+      const ip = clientIp(req);
+      const recent = (feedbackHits.get(ip) || []).filter((at) => t - at < FEEDBACK_WINDOW_MS);
+      if (recent.length >= FEEDBACK_PER_IP) throw new HttpError(429, 'too many messages, try again later');
+      feedbackHits.set(ip, [...recent, t]);
+      const truckId = typeof body.truckId === 'string' && store.get(body.truckId) ? body.truckId : null;
+      feedback.add({
+        id: crypto.randomBytes(6).toString('hex'),
+        kind: FEEDBACK_KINDS.includes(body.kind) ? body.kind : 'other',
+        message,
+        contact: cleanText(body.contact, 'contact', 120),
+        from: body.from === 'owner' ? 'owner' : 'customer',
+        truckId,
+        truckName: truckId ? store.get(truckId).name : null,
+        createdAt: t,
+        done: false,
+      });
+      return [201, { ok: true }];
+    }],
+
+    ['POST', /^\/api\/admin\/feedback$/, async (req) => {
+      authAdmin(await readJson(req));
+      return { feedback: feedback.items };
+    }],
+
+    ['POST', /^\/api\/admin\/feedback\/([\w-]+)\/(done|delete)$/, async (req, id, action) => {
+      const body = await readJson(req);
+      authAdmin(body);
+      const idx = feedback.items.findIndex((f) => f.id === id);
+      if (idx < 0) throw new HttpError(404, 'feedback not found');
+      if (action === 'delete') feedback.items.splice(idx, 1);
+      else feedback.items[idx].done = body.done !== false;
+      feedback.save();
+      return { ok: true };
+    }],
+
     ['GET', /^\/api\/events$/, (req, res) => {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
@@ -396,6 +490,7 @@ function createApp({
     let pathname = decodeURIComponent(url.pathname);
     if (pathname === '/') pathname = '/index.html';
     if (pathname === '/owner') pathname = '/owner.html';
+    if (pathname === '/admin') pathname = '/admin.html';
     const upload = pathname.match(UPLOAD_URL);
     const file = upload ? path.join(uploadsDir, upload[1]) : path.normalize(path.join(publicDir, pathname));
     if (!upload && !file.startsWith(publicDir + path.sep)) throw new HttpError(404, 'not found');

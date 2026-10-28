@@ -179,3 +179,32 @@ test('locatedAt tracks the last GPS report', async (t) => {
   await app.post(`/api/trucks/${id}/location`, { token, ...BKK });
   assert.equal((await app.get('/api/trucks')).body.trucks[0].locatedAt, clock);
 });
+
+test('feedback reaches the admin, with rate limit and key', async (t) => {
+  const app = await start({ adminKey: 'secret-admin' });
+  t.after(app.stop);
+  const { id } = (await app.post('/api/trucks', { name: 'G' })).body;
+
+  assert.equal((await app.post('/api/feedback', { message: '  ' })).status, 400);
+  const sent = await app.post('/api/feedback', { message: 'อยากให้มีโหมดสว่าง', kind: 'idea', contact: 'line: abc', from: 'owner', truckId: id });
+  assert.equal(sent.status, 201);
+
+  assert.equal((await app.post('/api/admin/feedback', { key: 'wrong' })).status, 403);
+  const list = (await app.post('/api/admin/feedback', { key: 'secret-admin' })).body.feedback;
+  assert.equal(list.length, 1);
+  assert.deepEqual([list[0].kind, list[0].from, list[0].truckName, list[0].contact, list[0].done], ['idea', 'owner', 'G', 'line: abc', false]);
+
+  assert.equal((await app.post(`/api/admin/feedback/${list[0].id}/done`, { key: 'secret-admin' })).status, 200);
+  assert.equal((await app.post('/api/admin/feedback', { key: 'secret-admin' })).body.feedback[0].done, true);
+  assert.equal((await app.post(`/api/admin/feedback/${list[0].id}/delete`, { key: 'secret-admin' })).status, 200);
+  assert.equal((await app.post('/api/admin/feedback', { key: 'secret-admin' })).body.feedback.length, 0);
+
+  for (let i = 0; i < 4; i++) assert.equal((await app.post('/api/feedback', { message: `m${i}` })).status, 201);
+  assert.equal((await app.post('/api/feedback', { message: 'one too many' })).status, 429);
+});
+
+test('admin is disabled without ADMIN_KEY', async (t) => {
+  const app = await start({ adminKey: undefined });
+  t.after(app.stop);
+  assert.equal((await app.post('/api/admin/feedback', { key: '' })).status, 503);
+});
