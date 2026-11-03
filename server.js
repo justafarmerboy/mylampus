@@ -756,8 +756,16 @@ module.exports = { createApp, COLORS, MIN_DURATION_MIN, MAX_DURATION_MIN };
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 3000;
-  const { server } = createApp({ dataFile: process.env.DATA_FILE || undefined });
+  const { server, close } = createApp({ dataFile: process.env.DATA_FILE || undefined });
   server.listen(port, () => {
     console.log(`🪲 LAMPUS fireflies on http://localhost:${port}  (owner: /owner)`);
   });
+  // Railway stops the old server on every deploy: finish cleanly instead of being killed mid-write.
+  for (const signal of ['SIGTERM', 'SIGINT']) {
+    process.once(signal, () => {
+      console.log(`${signal} received, shutting down`);
+      close().then(() => process.exit(0));
+      setTimeout(() => process.exit(0), 5000).unref();
+    });
+  }
 }
