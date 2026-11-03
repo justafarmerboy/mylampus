@@ -839,12 +839,16 @@ if (require.main === module) {
   server.listen(port, () => {
     console.log(`🪲 LAMPUS fireflies on http://localhost:${port}  (owner: /owner)`);
   });
-  // Railway stops the old server on every deploy: finish cleanly instead of being killed mid-write.
+  // Railway stops the old server on every deploy. Keep answering for a few seconds while the
+  // router moves traffic to the new one (closing at once caused 502s), then finish cleanly.
+  const graceMs = Number(process.env.SHUTDOWN_GRACE_MS ?? 8000);
   for (const signal of ['SIGTERM', 'SIGINT']) {
     process.once(signal, () => {
-      console.log(`${signal} received, shutting down`);
-      close().then(() => process.exit(0));
-      setTimeout(() => process.exit(0), 5000).unref();
+      console.log(`${signal} received, shutting down in ${graceMs} ms`);
+      setTimeout(() => {
+        close().then(() => process.exit(0));
+        setTimeout(() => process.exit(0), 5000).unref();
+      }, graceMs);
     });
   }
 }

@@ -4,6 +4,8 @@
     "startCommand": "node server.js",
     "healthcheckPath": "/robots.txt",
     "healthcheckTimeout": 60,
+    "overlapSeconds": 15,
+    "drainingSeconds": 20,
     "restartPolicyType": "ON_FAILURE"
   }
 }
