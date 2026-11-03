@@ -9,20 +9,20 @@
   dlg.className = 'fb-backdrop hidden';
   dlg.innerHTML = `
     <form class="fb card" role="dialog" aria-modal="true" aria-labelledby="fb-title">
-      <h2 id="fb-title">💬 ส่งความคิดเห็นถึงผู้สร้าง</h2>
-      <p class="sub" style="margin:0">ชอบอะไร อยากให้เพิ่มอะไร หรือเจอปัญหา บอกได้เลย</p>
-      <label for="fb-kind">เรื่อง</label>
+      <h2 id="fb-title">${t('fb.title')}</h2>
+      <p class="sub" style="margin:0">${t('fb.intro')}</p>
+      <label for="fb-kind">${t('fb.kind')}</label>
       <select id="fb-kind">
-        <option value="idea">💡 อยากให้เพิ่ม / ปรับปรุง</option>
-        <option value="bug">🐞 แจ้งปัญหา</option>
-        <option value="other">💬 อื่น ๆ</option>
+        <option value="idea">${t('fb.idea')}</option>
+        <option value="bug">${t('fb.bug')}</option>
+        <option value="other">${t('fb.other')}</option>
       </select>
-      <label for="fb-message">ข้อความ</label>
-      <textarea id="fb-message" maxlength="1000" required rows="5" placeholder="พิมพ์ได้เลย…"></textarea>
-      <label for="fb-contact">ช่องทางติดต่อกลับ (ไม่บังคับ)</label>
-      <input id="fb-contact" maxlength="120" placeholder="เช่น LINE ID, เบอร์โทร หรืออีเมล">
-      <button class="btn" type="submit">ส่ง</button>
-      <button class="btn ghost" type="button" data-fb-close>ยกเลิก</button>
+      <label for="fb-message">${t('fb.message')}</label>
+      <textarea id="fb-message" maxlength="1000" required rows="5" placeholder="${t('fb.messagePh')}"></textarea>
+      <label for="fb-contact">${t('fb.contact')}</label>
+      <input id="fb-contact" maxlength="120" placeholder="${t('fb.contactPh')}">
+      <button class="btn" type="submit">${t('fb.send')}</button>
+      <button class="btn ghost" type="button" data-fb-close>${t('fb.cancel')}</button>
       <div class="msg" id="fb-msg"></div>
     </form>`;
   document.body.appendChild(dlg);
@@ -63,10 +63,10 @@
           truckId,
         }),
       });
-      if (res.status === 429) throw new Error('ส่งถี่เกินไป ลองใหม่อีกสักพักนะ');
-      if (!res.ok) throw new Error('ส่งไม่สำเร็จ ลองใหม่อีกครั้ง');
+      if (res.status === 429) throw new Error(t('fb.tooMany'));
+      if (!res.ok) throw new Error(t('fb.failed'));
       $('fb-message').value = '';
-      $('fb-msg').textContent = 'ส่งแล้ว ขอบคุณมาก ✦';
+      $('fb-msg').textContent = t('fb.sent');
       setTimeout(close, 1500);
     } catch (err) {
       $('fb-msg').textContent = err.message;

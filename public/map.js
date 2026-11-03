@@ -29,16 +29,16 @@ function escapeHtml(s) {
 }
 
 function formatLeft(ms) {
-  if (ms <= 0) return 'กำลังจะปิด';
+  if (ms <= 0) return t('time.closing');
   const min = Math.ceil(ms / 60000);
-  if (min < 60) return `อีก ${min} นาที`;
+  if (min < 60) return t('time.leftMin', { m: min });
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return m ? `อีก ${h} ชม. ${m} นาที` : `อีก ${h} ชม.`;
+  return m ? t('time.leftHM', { h, m }) : t('time.leftH', { h });
 }
 
 function formatClock(ts) {
-  return new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  return new Date(ts).toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 function energyFor(truck) {
@@ -52,15 +52,15 @@ function locatedMin(truck) {
 }
 
 function formatAgo(min) {
-  if (min < 60) return `${Math.floor(min)} นาทีที่แล้ว`;
-  return `${Math.floor(min / 60)} ชม. ${Math.floor(min % 60)} นาทีที่แล้ว`;
+  if (min < 60) return t('time.agoMin', { m: Math.floor(min) });
+  return t('time.agoHM', { h: Math.floor(min / 60), m: Math.floor(min % 60) });
 }
 
 function locationText(truck) {
   const min = locatedMin(truck);
-  if (min < LIVE_MIN) return '📍 ตำแหน่งสด อัปเดตต่อเนื่อง';
-  if (min < STALE_MIN) return `📍 ตำแหน่งอัปเดตเมื่อ ${formatAgo(min)}`;
-  return `⚠️ ตำแหน่งอาจไม่ตรง — อัปเดตล่าสุด ${formatAgo(min)}`;
+  if (min < LIVE_MIN) return t('loc.live');
+  if (min < STALE_MIN) return t('loc.recent', { ago: formatAgo(min) });
+  return t('loc.stale', { ago: formatAgo(min) });
 }
 
 // Refresh everything that depends on how old the position is.
@@ -69,7 +69,7 @@ function updateFreshness(ff) {
   const stale = min >= STALE_MIN;
   ff.stale = stale;
   ff.el.classList.toggle('stale', stale);
-  ff.el.querySelector('.label').dataset.age = stale ? ` · 📍 ${Math.floor(min)} น.` : '';
+  ff.el.querySelector('.label').dataset.age = stale ? t('loc.tag', { m: Math.floor(min) }) : '';
   const loc = document.querySelector(`[data-loc="${ff.truck.id}"]`);
   if (loc) {
     loc.textContent = locationText(ff.truck);
@@ -79,7 +79,7 @@ function updateFreshness(ff) {
 }
 
 function formatPrice(n) {
-  return `฿${Number(n).toLocaleString('th-TH', { maximumFractionDigits: 2 })}`;
+  return `฿${Number(n).toLocaleString(I18N.locale, { maximumFractionDigits: 2 })}`;
 }
 
 function menuSection(title, list) {
@@ -91,7 +91,7 @@ function menuSection(title, list) {
         <div class="name">${escapeHtml(i.name)}</div>
         ${i.desc ? `<div class="desc">${escapeHtml(i.desc)}</div>` : ''}
       </div>
-      <div class="price">${formatPrice(i.price)}</div>
+      <div class="price" data-sold="${escapeHtml(t('sheet.soldOut'))}">${formatPrice(i.price)}</div>
     </div>`).join('');
 }
 
@@ -99,16 +99,16 @@ function sheetHtml(truck) {
   const nav = `https://www.google.com/maps/dir/?api=1&destination=${truck.lat},${truck.lng}`;
   const items = truck.items || [];
   return `
-    <button class="close-x" data-close aria-label="ปิด">✕</button>
+    <button class="close-x" data-close aria-label="${t('sheet.close')}">✕</button>
     ${truck.photo ? `<img class="cover" src="${escapeHtml(truck.photo)}" alt="">` : ''}
     <div class="body">
       <h2>${escapeHtml(truck.name)}</h2>
       ${truck.menu ? `<p class="about">${escapeHtml(truck.menu)}</p>` : ''}
-      <div class="when">เปิดถึง ${formatClock(truck.openUntil)} · <b data-left="${truck.id}">${formatLeft(truck.openUntil - serverNow())}</b></div>
+      <div class="when">${t('sheet.openUntil', { time: formatClock(truck.openUntil) })} · <b data-left="${truck.id}">${formatLeft(truck.openUntil - serverNow())}</b></div>
       <div class="loc" data-loc="${truck.id}">${locationText(truck)}</div>
-      ${menuSection('🍜 อาหาร', items.filter((i) => i.category !== 'drink'))}
-      ${menuSection('🧋 เครื่องดื่ม', items.filter((i) => i.category === 'drink'))}
-      <a class="btn nav" href="${nav}" target="_blank" rel="noopener">นำทางไปที่ร้าน →</a>
+      ${menuSection(t('sheet.food'), items.filter((i) => i.category !== 'drink'))}
+      ${menuSection(t('sheet.drinks'), items.filter((i) => i.category === 'drink'))}
+      <a class="btn nav" href="${nav}" target="_blank" rel="noopener">${t('sheet.nav')}</a>
     </div>`;
 }
 
@@ -208,9 +208,7 @@ function removeNow(id) {
 
 function updateCounter() {
   const n = [...fireflies.values()].filter((f) => !f.dying).length;
-  document.getElementById('counter').innerHTML = n
-    ? `✦ มีหิ่งห้อย <b>${n}</b> ตัวกำลังบินอยู่`
-    : 'ยังไม่มีหิ่งห้อยตอนนี้ — แวะมาใหม่นะ';
+  document.getElementById('counter').innerHTML = n === 1 ? t('map.countOne') : n ? t('map.count', { n }) : t('map.none');
 }
 
 // ---------- Flight loop ----------
@@ -291,7 +289,7 @@ function connect() {
   });
   es.addEventListener('closed', (e) => extinguish(JSON.parse(e.data).id));
   es.onerror = () => {
-    document.getElementById('counter').textContent = 'กำลังเชื่อมต่อใหม่…';
+    document.getElementById('counter').textContent = t('map.reconnecting');
   };
 }
 connect();
@@ -300,7 +298,7 @@ connect();
 
 let meMarker = null;
 document.getElementById('locate').addEventListener('click', () => {
-  if (!navigator.geolocation) return alert('อุปกรณ์นี้ไม่รองรับการระบุตำแหน่ง');
+  if (!navigator.geolocation) return alert(t('map.noGeo'));
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const ll = [pos.coords.latitude, pos.coords.longitude];
@@ -309,7 +307,7 @@ document.getElementById('locate').addEventListener('click', () => {
       map.setView(ll, 16);
       firstFit = false;
     },
-    () => alert('ไม่สามารถหาตำแหน่งของคุณได้'),
+    () => alert(t('map.geoFail')),
     { enableHighAccuracy: true, timeout: 10000 },
   );
 });

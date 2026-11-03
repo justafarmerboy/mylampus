@@ -1,0 +1,44 @@
+{
+  "name": "LAMPUS — Food truck fireflies",
+  "short_name": "LAMPUS",
+  "description": "A live map of food trucks open right now. Open trucks glow as fireflies.",
+  "lang": "en",
+  "id": "/",
+  "start_url": "/?lang=en",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070b14",
+  "theme_color": "#070b14",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My truck",
+      "short_name": "My truck",
+      "url": "/owner",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

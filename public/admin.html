@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex">
-  <title>LAMPUS — ความคิดเห็น</title>
+  <title data-i18n="title.admin">LAMPUS — ความคิดเห็น</title>
   <meta name="theme-color" content="#070b14">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap">
@@ -12,26 +12,30 @@
 </head>
 <body>
   <main class="owner admin">
-    <a href="/">← แผนที่</a>
-    <h1>📬 ความคิดเห็นจากผู้ใช้</h1>
+    <div class="owner-top">
+      <a href="/" data-i18n="a.back">← แผนที่</a>
+      <button class="install-link" type="button" data-lang-toggle data-i18n="lang.switch" data-i18n-label="lang.switchLabel">EN</button>
+    </div>
+    <h1 data-i18n="a.title">📬 ความคิดเห็นจากผู้ใช้</h1>
 
     <form class="card" id="login">
-      <label for="key">รหัสผู้ดูแล (ADMIN_KEY)</label>
+      <label for="key" data-i18n="a.key">รหัสผู้ดูแล (ADMIN_KEY)</label>
       <input id="key" type="password" autocomplete="current-password" required>
-      <button class="btn" type="submit">เข้าดู</button>
+      <button class="btn" type="submit" data-i18n="a.login">เข้าดู</button>
       <div class="msg" id="login-msg"></div>
     </form>
 
     <section id="inbox" class="hidden">
       <div class="fb-filter">
-        <button type="button" data-filter="new" aria-pressed="true">ยังไม่อ่าน <b id="count-new">0</b></button>
-        <button type="button" data-filter="all" aria-pressed="false">ทั้งหมด <b id="count-all">0</b></button>
+        <button type="button" data-filter="new" aria-pressed="true"><span data-i18n="a.unread">ยังไม่อ่าน</span> <b id="count-new">0</b></button>
+        <button type="button" data-filter="all" aria-pressed="false"><span data-i18n="a.all">ทั้งหมด</span> <b id="count-all">0</b></button>
         <button type="button" id="refresh">↻</button>
-        <button type="button" id="logout">ออก</button>
+        <button type="button" id="logout" data-i18n="a.logout">ออก</button>
       </div>
       <div id="list"></div>
     </section>
   </main>
+  <script src="/i18n.js"></script>
   <script src="/admin.js"></script>
 </body>
 </html>

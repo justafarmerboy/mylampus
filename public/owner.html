@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>LAMPUS — สำหรับเจ้าของร้าน</title>
+  <title data-i18n="title.owner">LAMPUS — สำหรับเจ้าของร้าน</title>
   <meta name="theme-color" content="#070b14">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -19,34 +19,37 @@
 <body>
   <main class="owner">
     <div class="owner-top">
-      <a href="/">← ดูแผนที่หิ่งห้อย</a>
-      <button class="install-link hidden" id="install" type="button">⤓ ติดตั้งแอป</button>
+      <a href="/" data-i18n="o.back">← ดูแผนที่หิ่งห้อย</a>
+      <span class="top-actions">
+        <button class="install-link hidden" id="install" type="button" data-i18n="install.button">⤓ ติดตั้งแอป</button>
+        <button class="install-link" type="button" data-lang-toggle data-i18n="lang.switch" data-i18n-label="lang.switchLabel">EN</button>
+      </span>
     </div>
-    <h1>🚚 ร้านของฉัน</h1>
-    <p class="sub">เปิดร้านแล้วหิ่งห้อยของคุณจะสว่างบนแผนที่ และดับลงเมื่อปิดร้านหรือครบเวลา</p>
+    <h1 data-i18n="o.title">🚚 ร้านของฉัน</h1>
+    <p class="sub" data-i18n="o.intro">เปิดร้านแล้วหิ่งห้อยของคุณจะสว่างบนแผนที่ และดับลงเมื่อปิดร้านหรือครบเวลา</p>
 
     <!-- Step 1: sign in with a shop code, or register a new shop -->
     <section class="hidden" id="register">
       <div class="card">
-        <h2>🔑 มีร้านอยู่แล้ว? เข้าร้านจากเครื่องนี้</h2>
-        <p class="sub" style="margin:0">วางรหัสร้านที่คัดลอกจากเครื่องเดิม (หน้านี้ › กล่อง “รหัสร้าน” › คัดลอกรหัส)</p>
+        <h2 data-i18n="o.haveShop">🔑 มีร้านอยู่แล้ว? เข้าร้านจากเครื่องนี้</h2>
+        <p class="sub" style="margin:0" data-i18n="o.haveShopHint">วางรหัสร้านที่คัดลอกจากเครื่องเดิม (หน้านี้ › กล่อง “รหัสร้าน” › คัดลอกรหัส)</p>
         <form id="restore-form">
-          <label for="restore-code">รหัสร้าน</label>
-          <input id="restore-code" placeholder="วางรหัสร้านที่นี่" autocomplete="off">
-          <button class="btn ghost" type="submit">เข้าสู่ร้าน</button>
+          <label for="restore-code" data-i18n="o.code">รหัสร้าน</label>
+          <input id="restore-code" data-i18n-ph="o.codePh" placeholder="วางรหัสร้านที่นี่" autocomplete="off">
+          <button class="btn ghost" type="submit" data-i18n="o.enter">เข้าสู่ร้าน</button>
         </form>
       </div>
 
       <div class="card">
-        <h2>✦ ร้านใหม่? ลงทะเบียนร้าน</h2>
+        <h2 data-i18n="o.newShop">✦ ร้านใหม่? ลงทะเบียนร้าน</h2>
         <form id="register-form">
-          <label for="name">ชื่อร้าน</label>
-          <input id="name" maxlength="60" required placeholder="เช่น ข้าวมันไก่ป้าแดง">
-          <label for="menu">เมนูเด่น / คำอธิบาย</label>
-          <textarea id="menu" maxlength="200" placeholder="เช่น ข้าวมันไก่ต้ม-ทอด, น้ำซุปฟรี"></textarea>
-          <label>สีแสงหิ่งห้อย</label>
+          <label for="name" data-i18n="o.name">ชื่อร้าน</label>
+          <input id="name" maxlength="60" required data-i18n-ph="o.namePh" placeholder="เช่น ข้าวมันไก่ป้าแดง">
+          <label for="menu" data-i18n="o.about">เมนูเด่น / คำอธิบาย</label>
+          <textarea id="menu" maxlength="200" data-i18n-ph="o.aboutPh" placeholder="เช่น ข้าวมันไก่ต้ม-ทอด, น้ำซุปฟรี"></textarea>
+          <label data-i18n="o.color">สีแสงหิ่งห้อย</label>
           <div class="swatches" id="swatches"></div>
-          <button class="btn" type="submit">สร้างหิ่งห้อยของฉัน ✦</button>
+          <button class="btn" type="submit" data-i18n="o.create">สร้างหิ่งห้อยของฉัน ✦</button>
         </form>
       </div>
       <div class="msg" id="register-msg"></div>
@@ -58,77 +61,70 @@
         <div class="status" id="status">
           <div class="dot"></div>
           <div>
-            <div class="big" id="status-text">ปิดอยู่</div>
-            <div class="small" id="status-sub">หิ่งห้อยของคุณกำลังพักผ่อน</div>
+            <div class="big" id="status-text" data-i18n="o.closed">ปิดอยู่</div>
+            <div class="small" id="status-sub" data-i18n="o.resting">หิ่งห้อยของคุณกำลังพักผ่อน</div>
           </div>
         </div>
 
         <div id="open-controls">
-          <label for="duration">เปิดร้านนานเท่าไร</label>
+          <label for="duration" data-i18n="o.duration">เปิดร้านนานเท่าไร</label>
           <select id="duration">
-            <option value="15">15 นาที</option>
-            <option value="30">30 นาที</option>
-            <option value="45">45 นาที</option>
-            <option value="60" selected>1 ชั่วโมง (สูงสุด)</option>
+            <option value="15" data-i18n="o.dur15">15 นาที</option>
+            <option value="30" data-i18n="o.dur30">30 นาที</option>
+            <option value="45" data-i18n="o.dur45">45 นาที</option>
+            <option value="60" selected data-i18n="o.dur60">1 ชั่วโมง (สูงสุด)</option>
           </select>
-          <button class="btn" id="open-btn">เปิดร้าน — ปล่อยหิ่งห้อย ✦</button>
+          <button class="btn" id="open-btn" data-i18n="o.open">เปิดร้าน — ปล่อยหิ่งห้อย ✦</button>
         </div>
 
         <div id="close-controls" class="hidden">
-          <button class="btn ghost" id="extend-btn">ต่อเวลา (นับใหม่ตามที่เลือกด้านบน)</button>
-          <button class="btn danger" id="close-btn">ปิดร้าน</button>
+          <button class="btn ghost" id="extend-btn" data-i18n="o.extend">ต่อเวลา (นับใหม่ตามที่เลือกด้านบน)</button>
+          <button class="btn danger" id="close-btn" data-i18n="o.close">ปิดร้าน</button>
         </div>
 
         <div class="msg" id="msg"></div>
       </div>
 
       <div class="card">
-        <h2>ข้อมูลร้าน</h2>
+        <h2 data-i18n="o.details">ข้อมูลร้าน</h2>
         <form id="profile-form">
-          <label>รูปหน้าร้าน</label>
-          <button type="button" class="cover-pick" id="p-cover"><span>📷 เพิ่มรูปหน้าร้าน</span></button>
-          <label for="p-name">ชื่อร้าน</label>
+          <label data-i18n="o.cover">รูปหน้าร้าน</label>
+          <button type="button" class="cover-pick" id="p-cover"><span data-i18n="o.addCover">📷 เพิ่มรูปหน้าร้าน</span></button>
+          <label for="p-name" data-i18n="o.name">ชื่อร้าน</label>
           <input id="p-name" maxlength="60" required>
-          <label for="p-menu">เมนูเด่น / คำอธิบาย</label>
+          <label for="p-menu" data-i18n="o.about">เมนูเด่น / คำอธิบาย</label>
           <textarea id="p-menu" maxlength="200"></textarea>
-          <label>สีแสงหิ่งห้อย</label>
+          <label data-i18n="o.color">สีแสงหิ่งห้อย</label>
           <div class="swatches" id="p-swatches"></div>
 
-          <h2 class="menu-head">เมนูอาหาร &amp; เครื่องดื่ม</h2>
+          <h2 class="menu-head" data-i18n="o.menuHead">เมนูอาหาร &amp; เครื่องดื่ม</h2>
           <div id="items"></div>
           <div class="add-row">
-            <button type="button" class="btn ghost" data-add="food">+ อาหาร</button>
-            <button type="button" class="btn ghost" data-add="drink">+ เครื่องดื่ม</button>
+            <button type="button" class="btn ghost" data-add="food" data-i18n="o.addFood">+ อาหาร</button>
+            <button type="button" class="btn ghost" data-add="drink" data-i18n="o.addDrink">+ เครื่องดื่ม</button>
           </div>
-          <button class="btn" type="submit">บันทึกข้อมูลร้านและเมนู</button>
+          <button class="btn" type="submit" data-i18n="o.save">บันทึกข้อมูลร้านและเมนู</button>
         </form>
         <div class="msg" id="profile-msg"></div>
       </div>
       <input type="file" id="file" accept="image/*" class="hidden">
 
       <div class="card">
-        <h2>รหัสร้าน</h2>
-        <p class="sub" style="margin:0">ใช้รหัสนี้เข้าร้านจากเครื่องอื่น เก็บไว้เป็นความลับ ใครมีรหัสนี้สามารถเปิด/ปิดร้านคุณได้</p>
+        <h2 data-i18n="o.codeHead">รหัสร้าน</h2>
+        <p class="sub" style="margin:0" data-i18n="o.codeHint">ใช้รหัสนี้เข้าร้านจากเครื่องอื่น เก็บไว้เป็นความลับ ใครมีรหัสนี้สามารถเปิด/ปิดร้านคุณได้</p>
         <input id="code" readonly style="margin-top:10px">
         <div class="link-row">
-          <button type="button" id="copy-code">คัดลอกรหัส</button>
-          <button type="button" id="logout">ออกจากเครื่องนี้</button>
+          <button type="button" id="copy-code" data-i18n="o.copy">คัดลอกรหัส</button>
+          <button type="button" id="logout" data-i18n="o.logout">ออกจากเครื่องนี้</button>
         </div>
       </div>
     </section>
-    <button type="button" class="install-link feedback-link" data-feedback>💬 ส่งความคิดเห็นถึงผู้สร้าง</button>
+    <button type="button" class="install-link feedback-link" data-feedback data-i18n="o.feedback">💬 ส่งความคิดเห็นถึงผู้สร้าง</button>
   </main>
 
-  <div class="install-tip hidden" id="install-tip" role="dialog" aria-label="วิธีติดตั้งแอป">
-    <b>ติดตั้ง LAMPUS บน iPhone</b>
-    <ol>
-      <li>เปิดหน้านี้ใน <b>Safari</b></li>
-      <li>กดปุ่ม <b>แชร์</b> (สี่เหลี่ยมมีลูกศรชี้ขึ้น)</li>
-      <li>เลือก <b>เพิ่มไปยังหน้าจอโฮม</b></li>
-    </ol>
-    <small>แตะเพื่อปิด</small>
-  </div>
+  <div class="install-tip hidden" id="install-tip" role="dialog" data-i18n-label="install.tipLabel" data-i18n-html="install.tip"></div>
 
+  <script src="/i18n.js"></script>
   <script src="/owner.js"></script>
   <script src="/pwa.js"></script>
   <script src="/feedback.js"></script>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>LAMPUS — หิ่งห้อยฟู้ดทรัค</title>
+  <title data-i18n="title.map">LAMPUS — หิ่งห้อยฟู้ดทรัค</title>
   <meta name="theme-color" content="#070b14">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -21,29 +21,22 @@
   <div id="map"></div>
 
   <div class="topbar">
-    <div class="brand"><span>✦</span> LAMPUS</div>
+    <div class="brand"><span>✦</span> LAMPUS <button class="lang-chip" data-lang-toggle data-i18n="lang.switch" data-i18n-label="lang.switchLabel">EN</button></div>
     <div class="actions">
-      <button class="btn-round hidden" id="install" title="ติดตั้งแอป" aria-label="ติดตั้งแอป">⤓</button>
-      <button class="btn-round" data-feedback title="ส่งความคิดเห็นถึงผู้สร้าง" aria-label="ส่งความคิดเห็นถึงผู้สร้าง">💬</button>
-      <button class="btn-round" id="locate" title="ตำแหน่งของฉัน" aria-label="ตำแหน่งของฉัน">◎</button>
-      <a class="btn-round" href="/owner" title="สำหรับเจ้าของร้าน" aria-label="สำหรับเจ้าของร้าน">🚚</a>
+      <button class="btn-round hidden" id="install" data-i18n-label="map.install">⤓</button>
+      <button class="btn-round" data-feedback data-i18n-label="map.feedback">💬</button>
+      <button class="btn-round" id="locate" data-i18n-label="map.locate">◎</button>
+      <a class="btn-round" href="/owner" data-i18n-label="map.owner">🚚</a>
     </div>
   </div>
 
-  <aside class="sheet" id="sheet" aria-hidden="true" aria-label="ข้อมูลร้าน"></aside>
+  <aside class="sheet" id="sheet" aria-hidden="true" data-i18n-label="map.sheet"></aside>
 
-  <div class="install-tip hidden" id="install-tip" role="dialog" aria-label="วิธีติดตั้งแอป">
-    <b>ติดตั้ง LAMPUS บน iPhone</b>
-    <ol>
-      <li>เปิดหน้านี้ใน <b>Safari</b></li>
-      <li>กดปุ่ม <b>แชร์</b> (สี่เหลี่ยมมีลูกศรชี้ขึ้น)</li>
-      <li>เลือก <b>เพิ่มไปยังหน้าจอโฮม</b></li>
-    </ol>
-    <small>แตะเพื่อปิด</small>
-  </div>
+  <div class="install-tip hidden" id="install-tip" role="dialog" data-i18n-label="install.tipLabel" data-i18n-html="install.tip"></div>
 
-  <div class="counter" id="counter">กำลังมองหาหิ่งห้อย…</div>
+  <div class="counter" id="counter" data-i18n="map.searching">กำลังมองหาหิ่งห้อย…</div>
 
+  <script src="/i18n.js"></script>
   <script src="/vendor/leaflet/leaflet.js"></script>
   <script src="/map.js"></script>
   <script src="/pwa.js"></script>

@@ -3,7 +3,7 @@
 // Creator's inbox: read, mark done and delete feedback. The admin key stays in this browser only.
 
 const KEY = 'mylampus.admin';
-const KINDS = { idea: '💡 ข้อเสนอแนะ', bug: '🐞 แจ้งปัญหา', other: '💬 อื่น ๆ' };
+const KINDS = { idea: t('a.idea'), bug: t('a.bug'), other: t('a.other') };
 const $ = (id) => document.getElementById(id);
 let items = [];
 let filter = 'new';
@@ -28,7 +28,7 @@ async function call(path, body = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(res.status === 403 ? 'รหัสไม่ถูกต้อง' : res.status === 503 ? 'ยังไม่ได้ตั้ง ADMIN_KEY บนเซิร์ฟเวอร์' : (data.error || `HTTP ${res.status}`));
+    const err = new Error(res.status === 403 ? t('a.wrongKey') : res.status === 503 ? t('a.noKey') : (data.error || `HTTP ${res.status}`));
     err.status = res.status;
     throw err;
   }
@@ -44,16 +44,16 @@ function render() {
     <article class="card fb-item${f.done ? ' done' : ''}" data-id="${f.id}">
       <div class="fb-meta">
         <span>${KINDS[f.kind] || f.kind}</span>
-        <span>${f.from === 'owner' ? `🚚 เจ้าของร้าน${f.truckName ? ` · ${escapeHtml(f.truckName)}` : ''}` : '🙂 ลูกค้า'}</span>
-        <span>${new Date(f.createdAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+        <span>${f.from === 'owner' ? `${t('a.fromOwner')}${f.truckName ? ` · ${escapeHtml(f.truckName)}` : ''}` : t('a.fromCustomer')}</span>
+        <span>${new Date(f.createdAt).toLocaleString(I18N.locale, { dateStyle: 'medium', timeStyle: 'short' })}</span>
       </div>
       <p>${escapeHtml(f.message)}</p>
-      ${f.contact ? `<div class="fb-contact">ติดต่อกลับ: ${escapeHtml(f.contact)}</div>` : ''}
+      ${f.contact ? `<div class="fb-contact">${t('a.contact', { c: escapeHtml(f.contact) })}</div>` : ''}
       <div class="link-row">
-        <button type="button" data-act="done">${f.done ? 'ทำเป็นยังไม่อ่าน' : '✓ อ่านแล้ว'}</button>
-        <button type="button" data-act="delete">ลบ</button>
+        <button type="button" data-act="done">${t(f.done ? 'a.markUnread' : 'a.markRead')}</button>
+        <button type="button" data-act="delete">${t('a.delete')}</button>
       </div>
-    </article>`).join('') : '<p class="sub">ไม่มีข้อความ ✦</p>';
+    </article>`).join('') : `<p class="sub">${t('a.empty')}</p>`;
 }
 
 async function load() {
@@ -82,7 +82,7 @@ $('list').addEventListener('click', async (e) => {
   if (!btn) return;
   const id = btn.closest('[data-id]').dataset.id;
   const item = items.find((f) => f.id === id);
-  if (btn.dataset.act === 'delete' && !confirm('ลบข้อความนี้?')) return;
+  if (btn.dataset.act === 'delete' && !confirm(t('a.confirmDelete'))) return;
   await call(`/api/admin/feedback/${id}/${btn.dataset.act}`, { done: !item.done });
   load();
 });

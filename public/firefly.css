@@ -451,7 +451,7 @@ textarea { resize: vertical; min-height: 60px; }
 .menu-item .desc { font-size: 12px; color: var(--muted); }
 .menu-item .price { font-weight: 600; white-space: nowrap; }
 .menu-item.sold-out { opacity: 0.45; }
-.menu-item.sold-out .price::after { content: ' · หมด'; font-weight: 400; font-size: 12px; }
+.menu-item.sold-out .price::after { content: attr(data-sold); font-weight: 400; font-size: 12px; }
 
 /* ---------- Position freshness ---------- */
 
@@ -537,3 +537,33 @@ textarea { resize: vertical; min-height: 60px; }
 .fb-item.done { opacity: 0.55; }
 .fb-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); }
 .fb-contact { font-size: 13px; color: var(--glow); }
+
+/* ---------- Language switch ---------- */
+
+.brand { display: flex; align-items: center; gap: 6px; }
+.lang-chip {
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.top-actions { display: flex; gap: 8px; }
+
+/* Brand + four round buttons must fit common phones (360px and up). */
+@media (max-width: 420px) {
+  .actions { gap: 6px; }
+  .btn-round { width: 38px; height: 38px; font-size: 17px; }
+  .brand { padding: 6px 8px 6px 12px; font-size: 15px; }
+}
+
+/* Very small phones: let the buttons drop to a second row instead of overflowing. */
+@media (max-width: 350px) {
+  .topbar { flex-wrap: wrap; }
+  .actions { margin-left: auto; }
+}

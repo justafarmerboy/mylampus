@@ -63,7 +63,7 @@ function makeSwatches(container, selected, onPick) {
     b.type = 'button';
     b.className = 'swatch';
     b.style.setProperty('--c', c);
-    b.setAttribute('aria-label', `สี ${c}`);
+    b.setAttribute('aria-label', t('o.colorLabel', { c }));
     b.setAttribute('aria-pressed', String(c === selected));
     b.addEventListener('click', () => {
       for (const s of container.children) s.setAttribute('aria-pressed', 'false');
@@ -93,12 +93,10 @@ function distanceMeters(a, b) {
 
 function getPosition() {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error('อุปกรณ์นี้ไม่รองรับการระบุตำแหน่ง'));
+    if (!navigator.geolocation) return reject(new Error(t('o.noGeo')));
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      (err) => reject(new Error(err.code === 1
-        ? 'กรุณาอนุญาตให้เข้าถึงตำแหน่ง เพื่อให้ลูกค้าเห็นหิ่งห้อยของคุณ'
-        : 'หาตำแหน่งไม่สำเร็จ ลองใหม่อีกครั้ง')),
+      (err) => reject(new Error(t(err.code === 1 ? 'o.geoDenied' : 'o.geoFail'))),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
     );
   });
@@ -115,7 +113,7 @@ function render() {
   const status = $('status');
   status.style.setProperty('--c', truck.color);
   status.classList.toggle('on', open);
-  $('status-text').textContent = open ? `${truck.name} — เปิดอยู่ ✦` : `${truck.name} — ปิดอยู่`;
+  $('status-text').textContent = t(open ? 'o.statusOpen' : 'o.statusClosed', { name: truck.name });
   $('open-controls').querySelector('#open-btn').classList.toggle('hidden', open);
   $('close-controls').classList.toggle('hidden', !open);
   tick();
@@ -126,13 +124,13 @@ function tick() {
   if (open) {
     const left = truck.openUntil - (Date.now() + clockSkew);
     if (left <= 0) {
-      setClosed('ครบเวลาแล้ว หิ่งห้อยดับลงแล้ว');
+      setClosed(t('o.expired'));
       return;
     }
-    const until = new Date(truck.openUntil).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-    $('status-sub').textContent = `ลูกค้ามองเห็นคุณอยู่ · ดับเองเวลา ${until} (เหลือ ${formatLeft(left)})`;
+    const until = new Date(truck.openUntil).toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit' });
+    $('status-sub').textContent = t('o.visible', { time: until, left: formatLeft(left) });
   } else {
-    $('status-sub').textContent = 'หิ่งห้อยของคุณกำลังพักผ่อน';
+    $('status-sub').textContent = t('o.resting');
   }
 }
 setInterval(tick, 1000);
@@ -165,7 +163,7 @@ async function resizeImage(file, max = 1024) {
   const img = await new Promise((resolve, reject) => {
     const i = new Image();
     i.onload = () => resolve(i);
-    i.onerror = () => reject(new Error('อ่านไฟล์รูปไม่ได้'));
+    i.onerror = () => reject(new Error(t('o.badImage')));
     i.src = URL.createObjectURL(file);
   });
   const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
@@ -200,17 +198,17 @@ $('file').addEventListener('change', async () => {
   if (!file || !pickPhoto) return;
   const done = pickPhoto;
   pickPhoto = null;
-  setMsg('profile-msg', 'กำลังอัปโหลดรูป…');
+  setMsg('profile-msg', t('o.uploading'));
   try {
     done(await uploadImage(file));
-    setMsg('profile-msg', 'อัปโหลดแล้ว อย่าลืมกดบันทึก');
+    setMsg('profile-msg', t('o.uploaded'));
   } catch (err) {
     setMsg('profile-msg', err.message, true);
   }
 });
 
 $('p-cover').addEventListener('click', () => {
-  if (coverPhoto && confirm('ลบรูปหน้าร้าน? (กด Cancel เพื่อเปลี่ยนรูป)')) {
+  if (coverPhoto && confirm(t('o.removeCover'))) {
     coverPhoto = null;
     showPhoto($('p-cover'), null);
     return;
@@ -222,21 +220,21 @@ function renderItems() {
   const box = $('items');
   box.innerHTML = '';
   if (!items.length) {
-    box.innerHTML = '<div class="empty-items">ยังไม่มีเมนู กดปุ่มด้านล่างเพื่อเพิ่ม</div>';
+    box.innerHTML = `<div class="empty-items">${t('o.noItems')}</div>`;
     return;
   }
   items.forEach((item, idx) => {
     const row = document.createElement('div');
     row.className = 'item';
     row.innerHTML = `
-      <button type="button" class="thumb" aria-label="รูปเมนู">📷</button>
-      <input class="name" maxlength="60" placeholder="ชื่อเมนู" required>
-      <input class="price" type="number" min="0" step="any" inputmode="decimal" placeholder="ราคา ฿" required>
-      <input class="desc" maxlength="120" placeholder="รายละเอียด (ไม่บังคับ)">
+      <button type="button" class="thumb" aria-label="${t('o.itemPhoto')}">📷</button>
+      <input class="name" maxlength="60" placeholder="${t('o.itemName')}" required>
+      <input class="price" type="number" min="0" step="any" inputmode="decimal" placeholder="${t('o.itemPrice')}" required>
+      <input class="desc" maxlength="120" placeholder="${t('o.itemDesc')}">
       <div class="row">
-        <select class="cat"><option value="food">🍜 อาหาร</option><option value="drink">🧋 เครื่องดื่ม</option></select>
-        <label><input type="checkbox" class="sold"> หมดแล้ว</label>
-        <button type="button" class="del">ลบ</button>
+        <select class="cat"><option value="food">${t('o.catFood')}</option><option value="drink">${t('o.catDrink')}</option></select>
+        <label><input type="checkbox" class="sold"> ${t('o.soldOut')}</label>
+        <button type="button" class="del">${t('o.delete')}</button>
       </div>`;
     const q = (s) => row.querySelector(s);
     q('.name').value = item.name || '';
@@ -251,7 +249,7 @@ function renderItems() {
     q('.cat').addEventListener('change', (e) => { item.category = e.target.value; });
     q('.sold').addEventListener('change', (e) => { item.soldOut = e.target.checked; });
     q('.thumb').addEventListener('click', () => {
-      if (item.photo && confirm('ลบรูปเมนูนี้? (กด Cancel เพื่อเปลี่ยนรูป)')) {
+      if (item.photo && confirm(t('o.removeItemPhoto'))) {
         item.photo = null;
         showPhoto(q('.thumb'), null);
         return;
@@ -284,7 +282,7 @@ async function sendLocation(pos, force = false) {
     const data = await api(`/api/trucks/${creds.id}/location`, { token: creds.token, ...pos });
     truck = data.truck;
   } catch (err) {
-    if (err.status === 409) setClosed('ร้านปิดแล้ว (ครบเวลา)');
+    if (err.status === 409) setClosed(t('o.expiredShort'));
   }
 }
 
@@ -292,7 +290,7 @@ function startSharing() {
   if (watchId != null || !navigator.geolocation) return;
   watchId = navigator.geolocation.watchPosition(
     (p) => sendLocation({ lat: p.coords.latitude, lng: p.coords.longitude }),
-    () => setMsg('msg', 'สัญญาณ GPS ขาดหาย — หิ่งห้อยจะอยู่ที่ตำแหน่งล่าสุด', true),
+    () => setMsg('msg', t('o.gpsLost'), true),
     { enableHighAccuracy: true, maximumAge: 5000 },
   );
   // A parked phone may not report new positions, so tell customers "still here" every minute.
@@ -355,7 +353,7 @@ $('register-form').addEventListener('submit', async (e) => {
     open = false;
     fillProfile();
     render();
-    setMsg('msg', 'สร้างร้านเรียบร้อย! กด “เปิดร้าน” เมื่อพร้อมขาย');
+    setMsg('msg', t('o.created'));
   } catch (err) {
     setMsg('register-msg', err.message, true);
   } finally {
@@ -367,7 +365,7 @@ $('register-form').addEventListener('submit', async (e) => {
 $('restore-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const [id, token] = $('restore-code').value.trim().split('.');
-  if (!id || !token) return setMsg('register-msg', 'รูปแบบรหัสไม่ถูกต้อง', true);
+  if (!id || !token) return setMsg('register-msg', t('o.badCode'), true);
   saveCreds({ id, token });
   await loadTruck();
 });
@@ -375,7 +373,7 @@ $('restore-form').addEventListener('submit', async (e) => {
 async function openShop(isExtend) {
   const btn = isExtend ? $('extend-btn') : $('open-btn');
   btn.disabled = true;
-  setMsg('msg', 'กำลังหาตำแหน่งของคุณ…');
+  setMsg('msg', t('o.locating'));
   try {
     const pos = await getPosition();
     const data = await api(`/api/trucks/${creds.id}/open`, {
@@ -389,7 +387,7 @@ async function openShop(isExtend) {
     lastSent = { ...pos, at: Date.now() };
     startSharing();
     render();
-    setMsg('msg', isExtend ? 'ต่อเวลาเรียบร้อย ✦' : 'หิ่งห้อยของคุณบินขึ้นแล้ว ✦ เปิดหน้านี้ค้างไว้เพื่อให้ตำแหน่งอัปเดต');
+    setMsg('msg', t(isExtend ? 'o.extended' : 'o.opened'));
   } catch (err) {
     setMsg('msg', err.message, true);
   } finally {
@@ -401,11 +399,11 @@ $('open-btn').addEventListener('click', () => openShop(false));
 $('extend-btn').addEventListener('click', () => openShop(true));
 
 $('close-btn').addEventListener('click', async () => {
-  if (!confirm('ปิดร้านตอนนี้? หิ่งห้อยจะดับลงทันที')) return;
+  if (!confirm(t('o.confirmClose'))) return;
   $('close-btn').disabled = true;
   try {
     await api(`/api/trucks/${creds.id}/close`, { token: creds.token });
-    setClosed('ปิดร้านแล้ว ขอบคุณที่มาส่องแสงวันนี้ 🌙');
+    setClosed(t('o.closedNow'));
   } catch (err) {
     setMsg('msg', err.message, true);
   } finally {
@@ -427,7 +425,7 @@ $('profile-form').addEventListener('submit', async (e) => {
     truck = data.truck;
     fillProfile();
     render();
-    setMsg('profile-msg', open ? 'บันทึกแล้ว ลูกค้าเห็นเมนูใหม่ทันที ✦' : 'บันทึกแล้ว');
+    setMsg('profile-msg', t(open ? 'o.savedLive' : 'o.saved'));
   } catch (err) {
     setMsg('profile-msg', err.message, true);
   }
@@ -436,14 +434,14 @@ $('profile-form').addEventListener('submit', async (e) => {
 $('copy-code').addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText($('code').value);
-    $('copy-code').textContent = 'คัดลอกแล้ว ✓';
+    $('copy-code').textContent = t('o.copied');
   } catch {
     $('code').select();
   }
 });
 
 $('logout').addEventListener('click', () => {
-  if (!confirm('ออกจากเครื่องนี้? (ร้านยังอยู่ ใช้รหัสร้านเพื่อกลับเข้ามา)')) return;
+  if (!confirm(t('o.confirmLogout'))) return;
   stopSharing();
   saveCreds(null);
   truck = null;
@@ -463,16 +461,16 @@ async function loadTruck() {
     render();
     if (open) {
       startSharing();
-      setMsg('msg', 'ร้านยังเปิดอยู่ — กลับมาแชร์ตำแหน่งต่อแล้ว');
+      setMsg('msg', t('o.resumed'));
     }
   } catch (err) {
     if (err.status === 403 || err.status === 404) {
       saveCreds(null);
       truck = null;
       render();
-      setMsg('register-msg', 'ไม่พบร้านหรือรหัสไม่ถูกต้อง', true);
+      setMsg('register-msg', t('o.notFound'), true);
     } else {
-      setMsg('register-msg', 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', true);
+      setMsg('register-msg', t('o.offline'), true);
       $('register').classList.remove('hidden');
     }
   }
