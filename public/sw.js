@@ -4,7 +4,7 @@
 // on a flaky connection. Pages and scripts are network-first so updates show up
 // immediately; live data (/api/) is never cached.
 
-const CACHE = 'mylampus-v6';
+const CACHE = 'mylampus-v7';
 const SHELL = [
   '/', '/owner', '/firefly.css', '/map.js', '/owner.js', '/pwa.js', '/feedback.js', '/i18n.js', '/chat.js', '/mine.js',
   '/vendor/leaflet/leaflet.css', '/vendor/leaflet/leaflet.js',
@@ -21,6 +21,16 @@ self.addEventListener('activate', (event) => {
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
+});
+
+// Tapping a new-message notification opens (or focuses) the owner page.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/owner';
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    const open = list.find((c) => new URL(c.url).pathname === url);
+    return open ? open.focus() : self.clients.openWindow(url);
+  }));
 });
 
 self.addEventListener('fetch', (event) => {

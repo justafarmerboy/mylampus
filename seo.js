@@ -165,7 +165,7 @@ function renderShopPage({ site, truck, lang, open, now }) {
       ${menuHtml(items.filter((i) => i.category !== 'drink'), tx.food, lang)}
       ${menuHtml(items.filter((i) => i.category === 'drink'), tx.drinks, lang)}
     </section>` : ''}
-    <p class="sub shop-foot"><a href="/${lang === 'en' ? '?lang=en' : ''}">${esc(tx.footer)}</a></p>
+    <p class="sub shop-foot"><a href="/${lang === 'en' ? '?lang=en' : ''}">${esc(tx.footer)}</a><br><a href="/privacy${lang === 'en' ? '?lang=en' : ''}">${lang === 'en' ? 'Privacy' : 'ความเป็นส่วนตัว'}</a></p>
   </main>
 </body>
 </html>`;
@@ -186,7 +186,7 @@ function sitemap({ site, trucks, now }) {
     .map((t) => entry(`/t/${t.id}`, t.lastOpenedAt || t.openedAt));
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
-${[entry('/'), ...shops].join('\n')}
+${[entry('/'), entry('/privacy'), ...shops].join('\n')}
 </urlset>
 `;
 }
@@ -200,4 +200,114 @@ Sitemap: ${site}/sitemap.xml
 `;
 }
 
-module.exports = { renderShopPage, sitemap, robots };
+const PRIVACY = {
+  th: {
+    title: 'นโยบายความเป็นส่วนตัว — LAMPUS',
+    updated: 'ปรับปรุงล่าสุด 3 พฤศจิกายน 2026',
+    intro: 'LAMPUS เป็นแผนที่ฟู้ดทรัคที่เปิดอยู่ตอนนี้ หน้านี้อธิบายว่าเราเก็บข้อมูลอะไร ใช้ทำอะไร และเก็บไว้นานแค่ไหน เราไม่มีโฆษณา ไม่ขายข้อมูล และไม่ใช้เครื่องมือติดตามพฤติกรรม',
+    sections: [
+      ['ลูกค้า (ผู้ดูแผนที่)', [
+        'ไม่ต้องสมัครสมาชิก',
+        'ปุ่ม “ตำแหน่งของฉัน” ใช้ตำแหน่งของคุณบนเครื่องเท่านั้น ไม่ได้ส่งมาที่เซิร์ฟเวอร์',
+        'ร้านโปรด รหัสแชท ชื่อที่ใช้แชท และภาษาที่เลือก เก็บไว้ในเบราว์เซอร์ของคุณเอง ลบได้โดยล้างข้อมูลเว็บไซต์',
+        'ข้อความแชทกับร้าน และชื่อที่คุณใส่ (ถ้ามี) เก็บบนเซิร์ฟเวอร์เพื่อส่งให้ร้าน ในแอปเห็นได้เฉพาะคุณและร้านนั้น ผู้ดูแลระบบเข้าถึงได้ผ่านไฟล์สำรองข้อมูลเพื่อดูแลระบบและจัดการการใช้งานที่ไม่เหมาะสมเท่านั้น',
+      ]],
+      ['เจ้าของร้าน', [
+        'ชื่อร้าน คำอธิบาย เมนู ราคา รูป และสีหิ่งห้อย แสดงต่อสาธารณะบนแผนที่และหน้าร้าน',
+        'ตำแหน่ง GPS ส่งเฉพาะตอนเปิดร้านอยู่ และแสดงต่อสาธารณะแบบสดระหว่างเปิดร้าน เราไม่เก็บประวัติเส้นทาง เก็บเฉพาะตำแหน่งล่าสุด และไม่แสดงตำแหน่งเมื่อปิดร้าน',
+        'รหัสร้านเก็บในเบราว์เซอร์ของคุณ เซิร์ฟเวอร์เก็บเพียงค่าแฮชของรหัส',
+      ]],
+      ['ความคิดเห็นถึงผู้สร้าง', [
+        'ข้อความและช่องทางติดต่อที่คุณใส่ (ถ้ามี) อ่านได้เฉพาะผู้ดูแลระบบ',
+      ]],
+      ['ข้อมูลทางเทคนิค', [
+        'ผู้ให้บริการเซิร์ฟเวอร์ (Railway) บันทึกที่อยู่ IP และชนิดเบราว์เซอร์ของคำขอเพื่อดูแลระบบ',
+        'เราใช้ที่อยู่ IP ชั่วคราวในหน่วยความจำเพื่อกันสแปม',
+      ]],
+      ['บริการภายนอก', [
+        'ภาพแผนที่โหลดจาก OpenStreetMap และฟอนต์จาก Google Fonts ผู้ให้บริการเหล่านี้จะเห็นที่อยู่ IP ของคุณตอนโหลด',
+        'ปุ่ม “นำทาง” เปิด Google Maps เมื่อคุณกดเท่านั้น',
+      ]],
+      ['ระยะเวลาเก็บและการลบ', [
+        'แชทเก็บสูงสุด 200 ข้อความต่อแชท ร้านลบแชทได้ทุกเมื่อ',
+        'ข้อมูลสำรองรายวันเก็บ 14 วันแล้วลบอัตโนมัติ',
+        'ต้องการลบร้านหรือข้อมูลของคุณ แจ้งผ่านปุ่ม 💬 ส่งความคิดเห็นถึงผู้สร้าง พร้อมช่องทางติดต่อกลับ',
+      ]],
+    ],
+    back: '← กลับไปที่แผนที่',
+    other: 'English',
+  },
+  en: {
+    title: 'Privacy policy — LAMPUS',
+    updated: 'Last updated 3 November 2026',
+    intro: 'LAMPUS is a live map of food trucks that are open right now. This page explains what we store, why, and for how long. We have no ads, sell no data and use no behavioural tracking.',
+    sections: [
+      ['Customers (map visitors)', [
+        'No account is needed.',
+        'The “My location” button uses your location on your device only; it is never sent to our server.',
+        'Saved shops, chat keys, your chat name and language choice are stored in your own browser; clearing site data removes them.',
+        'Chat messages with a shop, and the name you give (if any), are stored on our server so the shop can read them. In the app only you and that shop can see them; the site administrator can access them through data backups, only to run the service and handle abuse.',
+      ]],
+      ['Truck owners', [
+        'Shop name, description, menu, prices, photos and glow color are public on the map and the shop page.',
+        'GPS location is sent only while your shop is open and is shown publicly, live, during that time. We keep no route history, only the last position, and never show it while you are closed.',
+        'Your shop code is stored in your browser; the server keeps only a hash of it.',
+      ]],
+      ['Feedback to the creator', [
+        'Your message and contact details (if any) can be read only by the site administrator.',
+      ]],
+      ['Technical data', [
+        'Our hosting provider (Railway) logs IP addresses and browser types of requests to operate the service.',
+        'IP addresses are held briefly in memory to limit spam.',
+      ]],
+      ['Third-party services', [
+        'Map images load from OpenStreetMap and fonts from Google Fonts; these providers see your IP address when they load.',
+        'The “Get directions” button opens Google Maps only when you tap it.',
+      ]],
+      ['Retention and deletion', [
+        'Chats keep up to 200 messages; shops can delete a chat at any time.',
+        'Daily backups are kept for 14 days, then deleted automatically.',
+        'To have your shop or data deleted, use 💬 Send feedback to the creator and include a way to reach you.',
+      ]],
+    ],
+    back: '← Back to the map',
+    other: 'ภาษาไทย',
+  },
+};
+
+function renderPrivacyPage({ site, lang }) {
+  const p = PRIVACY[lang];
+  const other = lang === 'en' ? 'th' : 'en';
+  const url = (l) => `${site}/privacy${l === 'en' ? '?lang=en' : ''}`;
+  return `<!doctype html>
+<html lang="${lang}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>${esc(p.title)}</title>
+  <meta name="description" content="${esc(p.intro)}">
+  <link rel="canonical" href="${esc(url(lang))}">
+  <link rel="alternate" hreflang="th" href="${esc(url('th'))}">
+  <link rel="alternate" hreflang="en" href="${esc(url('en'))}">
+  <meta name="theme-color" content="#070b14">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/firefly.css">
+</head>
+<body>
+  <main class="owner shop-page privacy">
+    <div class="owner-top">
+      <a href="/${lang === 'en' ? '?lang=en' : ''}"><b>✦ LAMPUS</b></a>
+      <a class="install-link" href="/privacy${other === 'en' ? '?lang=en' : ''}" hreflang="${other}">${esc(p.other)}</a>
+    </div>
+    <h1>${esc(p.title.split(' — ')[0])}</h1>
+    <p class="sub">${esc(p.updated)}</p>
+    <p>${esc(p.intro)}</p>
+    ${p.sections.map(([h, items]) => `<section class="card"><h2>${esc(h)}</h2><ul>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul></section>`).join('\n    ')}
+    <p class="shop-foot"><a href="/${lang === 'en' ? '?lang=en' : ''}">${esc(p.back)}</a></p>
+  </main>
+</body>
+</html>`;
+}
+
+module.exports = { renderShopPage, renderPrivacyPage, sitemap, robots };

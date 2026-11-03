@@ -26,6 +26,13 @@
     </form>
 
     <section id="inbox" class="hidden">
+      <div class="fb-filter admin-tabs">
+        <button type="button" data-view="feedback" aria-pressed="true" data-i18n="a.tabFeedback">💬 ความคิดเห็น</button>
+        <button type="button" data-view="shops" aria-pressed="false" data-i18n="a.tabShops">🚚 ร้านทั้งหมด</button>
+        <button type="button" id="backup" data-i18n="a.backup">⬇ ดาวน์โหลดข้อมูลสำรอง</button>
+      </div>
+      <div id="view-shops" class="hidden"><div id="shops"></div></div>
+      <div id="view-feedback">
       <div class="fb-filter">
         <button type="button" data-filter="new" aria-pressed="true"><span data-i18n="a.unread">ยังไม่อ่าน</span> <b id="count-new">0</b></button>
         <button type="button" data-filter="all" aria-pressed="false"><span data-i18n="a.all">ทั้งหมด</span> <b id="count-all">0</b></button>
@@ -33,6 +40,7 @@
         <button type="button" id="logout" data-i18n="a.logout">ออก</button>
       </div>
       <div id="list"></div>
+      </div>
     </section>
   </main>
   <script src="/i18n.js"></script>

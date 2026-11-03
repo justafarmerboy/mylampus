@@ -25,6 +25,7 @@ const MAX_CHAT_MESSAGES = 200;           // per chat; oldest dropped
 const MAX_CHATS_PER_TRUCK = 300;         // least recently active dropped
 const CHAT_MSGS_PER_MIN = 10;            // per chat, customer side
 const NEW_CHATS_PER_IP_HOUR = 10;
+const BACKUPS_KEPT = 14;                 // daily snapshots
 const UPLOAD_URL = /^\/uploads\/([a-f0-9]{24}\.(?:jpg|png|webp))$/;
 const SWEEP_INTERVAL_MS = 5000;
 const COLORS = ['#d4ff4f', '#ffd84f', '#ff9f4f', '#4fffb0', '#4fd8ff', '#ff6fd8'];
@@ -179,7 +180,7 @@ function tokenMatches(truck, token) {
 }
 
 function isOpen(truck, now = Date.now()) {
-  return Boolean(truck.openUntil && truck.openUntil > now && truck.lat != null);
+  return Boolean(!truck.hidden && truck.openUntil && truck.openUntil > now && truck.lat != null);
 }
 
 // Fields anyone on the map may see.
@@ -317,6 +318,7 @@ function createApp({
   uploadsDir = path.join(path.dirname(dataFile), 'uploads'),
   feedbackFile = path.join(path.dirname(dataFile), 'feedback.json'),
   chatsFile = path.join(path.dirname(dataFile), 'chats.json'),
+  backupsDir = path.join(path.dirname(dataFile), 'backups'),
   adminKey = process.env.ADMIN_KEY,
   siteUrl = (process.env.SITE_URL || 'https://lampus.app').replace(/\/$/, ''),
   now = Date.now,
@@ -363,6 +365,32 @@ function createApp({
       last: last && { from: last.from, text: last.text, at: last.at },
       unread: unreadFor(chat, role),
     };
+  }
+
+  // Everything except photos, as one JSON document.
+  function bundle() {
+    return { version: 1, createdAt: now(), trucks: store.all(), feedback: feedback.items, chats: [...chats.chats.values()] };
+  }
+
+  // One snapshot per Bangkok calendar day, oldest pruned beyond BACKUPS_KEPT.
+  function dailyBackup() {
+    if (!dataFile || !backupsDir) return;
+    try {
+      const day = new Date(now()).toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+      const file = path.join(backupsDir, `lampus-${day}.json`);
+      if (fs.existsSync(file)) return;
+      fs.mkdirSync(backupsDir, { recursive: true });
+      fs.writeFileSync(`${file}.tmp`, JSON.stringify(bundle()));
+      fs.renameSync(`${file}.tmp`, file);
+      const old = fs.readdirSync(backupsDir).filter((f) => /^lampus-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
+      for (const f of old.slice(0, Math.max(0, old.length - BACKUPS_KEPT))) fs.rmSync(path.join(backupsDir, f), { force: true });
+    } catch (err) {
+      console.error('Backup failed:', err.message);
+    }
+  }
+
+  function deleteUploads(names) {
+    for (const name of names || []) fs.rm(path.join(uploadsDir, name), { force: true }, () => {});
   }
 
   function authAdmin(body) {
@@ -478,6 +506,7 @@ function createApp({
     ['POST', /^\/api\/trucks\/([\w-]+)\/open$/, async (req, id) => {
       const body = await readJson(req);
       const truck = authTruck(id, body);
+      if (truck.hidden) throw new HttpError(403, 'this shop has been suspended');
       const { lat, lng } = cleanCoords(body);
       const minutes = cleanDuration(body.durationMin);
       const t = now();
@@ -535,6 +564,49 @@ function createApp({
       return [201, { ok: true }];
     }],
 
+    // Admin: full backup (data only, not photos) to keep somewhere else.
+    ['POST', /^\/api\/admin\/backup$/, async (req) => {
+      authAdmin(await readJson(req));
+      return bundle();
+    }],
+
+    // Admin: every truck, for moderation.
+    ['POST', /^\/api\/admin\/trucks$/, async (req) => {
+      authAdmin(await readJson(req));
+      const t = now();
+      return {
+        trucks: store.all().sort((a, b) => (b.lastOpenedAt || b.createdAt) - (a.lastOpenedAt || a.createdAt)).map((truck) => ({
+          ...publicView(truck),
+          createdAt: truck.createdAt,
+          lastOpenedAt: truck.lastOpenedAt || null,
+          open: isOpen(truck, t),
+          hidden: Boolean(truck.hidden),
+          chats: chats.forTruck(truck.id).length,
+        })),
+      };
+    }],
+
+    // Admin: suspend (hide) or restore a truck, or delete it with its chats and photos.
+    ['POST', /^\/api\/admin\/trucks\/([\w-]+)\/(hide|delete)$/, async (req, id, action) => {
+      const body = await readJson(req);
+      authAdmin(body);
+      const truck = store.get(id);
+      if (!truck) throw new HttpError(404, 'truck not found');
+      if (action === 'hide') {
+        truck.hidden = body.hidden !== false;
+        if (truck.hidden) closeTruck(truck, 'owner');
+        else store.save();
+        return { ok: true, hidden: truck.hidden };
+      }
+      if (truck.openUntil) closeTruck(truck, 'owner');
+      deleteUploads(truck.uploads);
+      for (const c of chats.forTruck(id)) chats.chats.delete(c.id);
+      chats.save();
+      store.trucks.delete(id);
+      store.save();
+      return { ok: true };
+    }],
+
     ['POST', /^\/api\/admin\/feedback$/, async (req) => {
       authAdmin(await readJson(req));
       return { feedback: feedback.items };
@@ -555,7 +627,7 @@ function createApp({
     ['POST', /^\/api\/chats$/, async (req) => {
       const body = await readJson(req);
       const truck = store.get(body.truckId);
-      if (!truck) throw new HttpError(404, 'truck not found');
+      if (!truck || truck.hidden) throw new HttpError(404, 'truck not found');
       limit(chatHits, `ip:${clientIp(req)}`, NEW_CHATS_PER_IP_HOUR, 60 * 60 * 1000, 'too many new chats, try again later');
       const mine = chats.forTruck(truck.id).sort((a, b) => a.lastAt - b.lastAt);
       while (mine.length >= MAX_CHATS_PER_TRUCK) chats.chats.delete(mine.shift().id);
@@ -681,7 +753,7 @@ function createApp({
     const shop = pathname.match(/^\/t\/([\w-]+)$/);
     if (shop) {
       const truck = store.get(shop[1]);
-      if (!truck) {
+      if (!truck || truck.hidden) {
         const html = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>LAMPUS</title><meta name="robots" content="noindex"><link rel="stylesheet" href="/firefly.css"><main class="owner"><h1>✦ LAMPUS</h1><p class="sub">ไม่พบร้านนี้ · Shop not found</p><a class="btn" href="/">แผนที่ · Map →</a></main>';
         res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(html);
@@ -690,8 +762,11 @@ function createApp({
       sweep();
       const lang = new URL(req.url, 'http://localhost').searchParams.get('lang') === 'en' ? 'en' : 'th';
       body = seo.renderShopPage({ site: siteUrl, truck, lang, open: isOpen(truck, now()), now: now() });
+    } else if (pathname === '/privacy') {
+      const lang = new URL(req.url, 'http://localhost').searchParams.get('lang') === 'en' ? 'en' : 'th';
+      body = seo.renderPrivacyPage({ site: siteUrl, lang });
     } else if (pathname === '/sitemap.xml') {
-      body = seo.sitemap({ site: siteUrl, trucks: store.all(), now: now() });
+      body = seo.sitemap({ site: siteUrl, trucks: store.all().filter((t) => !t.hidden), now: now() });
       type = 'application/xml; charset=utf-8';
     } else if (pathname === '/robots.txt') {
       body = seo.robots({ site: siteUrl });
@@ -732,6 +807,9 @@ function createApp({
 
   const server = http.createServer(handler);
   const sweeper = setInterval(sweep, SWEEP_INTERVAL_MS);
+  const backupTimer = setInterval(dailyBackup, 60 * 60 * 1000);
+  backupTimer.unref();
+  setTimeout(dailyBackup, 10000).unref();
   sweeper.unref();
   const heartbeat = setInterval(() => {
     for (const res of clients) res.write(': ping\n\n');
@@ -740,6 +818,7 @@ function createApp({
   // Stop timers, end live streams and shut the server down.
   function close() {
     clearInterval(sweeper);
+    clearInterval(backupTimer);
     clearInterval(heartbeat);
     for (const res of clients) res.end();
     clients.clear();
@@ -749,7 +828,7 @@ function createApp({
     });
   }
 
-  return { server, store, sweep, close };
+  return { server, store, sweep, close, dailyBackup };
 }
 
 module.exports = { createApp, COLORS, MIN_DURATION_MIN, MAX_DURATION_MIN };

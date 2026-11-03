@@ -17,6 +17,7 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
+map.attributionControl.addAttribution(`<a href="/privacy${I18N.lang === 'en' ? '?lang=en' : ''}">${t('privacy')}</a>`);
 
 const fireflies = new Map(); // id -> { truck, marker, el, seed, cur, target }
 let clockSkew = 0;           // serverNow - clientNow

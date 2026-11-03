@@ -307,3 +307,57 @@ test('shop pages, sitemap and robots for search engines', async (t) => {
   assert.match(rb.text, /Disallow: \/admin/);
   assert.match(rb.text, /Sitemap: https:\/\/lampus.app\/sitemap.xml/);
 });
+
+test('daily backup snapshots and admin backup download', async (t) => {
+  let clock = Date.UTC(2026, 10, 3, 3, 0);
+  const app = await start({ now: () => clock, adminKey: 'k' });
+  t.after(app.stop);
+  await app.post('/api/trucks', { name: 'K' });
+  app.dailyBackup();
+  app.dailyBackup(); // same day: no second file
+  const dir = path.join(app.dir, 'backups');
+  assert.deepEqual(fs.readdirSync(dir), ['lampus-2026-11-03.json']);
+  const snap = JSON.parse(fs.readFileSync(path.join(dir, 'lampus-2026-11-03.json'), 'utf8'));
+  assert.equal(snap.trucks[0].name, 'K');
+  for (let d = 1; d <= 20; d++) { clock += 864e5; app.dailyBackup(); }
+  assert.equal(fs.readdirSync(dir).length, 14, 'keeps two weeks');
+
+  assert.equal((await app.post('/api/admin/backup', { key: 'bad' })).status, 403);
+  const full = (await app.post('/api/admin/backup', { key: 'k' })).body;
+  assert.deepEqual([full.version, full.trucks.length, Array.isArray(full.chats)], [1, 1, true]);
+});
+
+test('admin can suspend and delete shops', async (t) => {
+  const app = await start({ adminKey: 'k' });
+  t.after(app.stop);
+  const { id, token } = (await app.post('/api/trucks', { name: 'Spam shop' })).body;
+  await app.post(`/api/trucks/${id}/open`, { token, durationMin: 60, ...BKK });
+  const c = (await app.post('/api/chats', { truckId: id })).body;
+
+  const list = (await app.post('/api/admin/trucks', { key: 'k' })).body.trucks;
+  assert.deepEqual([list.length, list[0].open, list[0].hidden, list[0].chats], [1, true, false, 1]);
+
+  assert.equal((await app.post(`/api/admin/trucks/${id}/hide`, { key: 'k' })).status, 200);
+  assert.equal((await app.get('/api/trucks')).body.trucks.length, 0, 'suspended shop disappears');
+  assert.equal((await app.post(`/api/trucks/${id}/open`, { token, durationMin: 60, ...BKK })).status, 403);
+  assert.equal((await fetch(`${app.base}/t/${id}`)).status, 404);
+  assert.equal((await app.post('/api/chats', { truckId: id })).status, 404);
+
+  await app.post(`/api/admin/trucks/${id}/hide`, { key: 'k', hidden: false });
+  assert.equal((await app.post(`/api/trucks/${id}/open`, { token, durationMin: 60, ...BKK })).status, 200, 'restored shop can open again');
+
+  assert.equal((await app.post(`/api/admin/trucks/${id}/delete`, { key: 'k' })).status, 200);
+  assert.equal((await app.post(`/api/trucks/${id}/me`, { token })).status, 404);
+  assert.equal((await app.post(`/api/chats/${c.id}`, { token: c.token })).status, 404, 'its chats are gone too');
+});
+
+test('privacy page in both languages', async (t) => {
+  const app = await start();
+  t.after(app.stop);
+  const th = await (await fetch(`${app.base}/privacy`)).text();
+  const en = await (await fetch(`${app.base}/privacy?lang=en`)).text();
+  assert.match(th, /<html lang="th">/);
+  assert.match(th, /นโยบายความเป็นส่วนตัว/);
+  assert.match(en, /Privacy policy/);
+  assert.ok((await (await fetch(`${app.base}/sitemap.xml`)).text()).includes('/privacy'));
+});

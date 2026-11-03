@@ -90,6 +90,62 @@ $('list').addEventListener('click', async (e) => {
 for (const b of document.querySelectorAll('[data-filter]')) {
   b.addEventListener('click', () => { filter = b.dataset.filter; render(); });
 }
+// ---------- Shops (moderation) ----------
+
+async function loadShops() {
+  const { trucks } = await call('/api/admin/trucks');
+  $('shops').innerHTML = trucks.length ? trucks.map((s) => `
+    <article class="card fb-item${s.hidden ? ' done' : ''}" data-shop="${s.id}" style="--c:${escapeHtml(s.color)}">
+      <div class="fb-meta">
+        <span>${s.hidden ? t('a.suspended') : s.open ? t('mine.openNow') : t('mine.closed')}</span>
+        <span>${t('a.lastOpen')}: ${s.lastOpenedAt ? new Date(s.lastOpenedAt).toLocaleString(I18N.locale, { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</span>
+        <span>💬 ${s.chats}</span>
+      </div>
+      <p><b>${escapeHtml(s.name)}</b>${s.menu ? `<br><small>${escapeHtml(s.menu)}</small>` : ''}</p>
+      <div class="link-row">
+        <a href="/t/${s.id}" target="_blank" rel="noopener">${t('a.view')}</a>
+        <button type="button" data-shop-act="hide">${t(s.hidden ? 'a.unsuspend' : 'a.suspend')}</button>
+        <button type="button" data-shop-act="delete">${t('a.delete')}</button>
+      </div>
+    </article>`).join('') : `<p class="sub">${t('a.noShops')}</p>`;
+}
+
+$('shops').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-shop-act]');
+  if (!btn) return;
+  const card = btn.closest('[data-shop]');
+  const id = card.dataset.shop;
+  if (btn.dataset.shopAct === 'delete') {
+    if (!confirm(t('a.confirmDeleteShop'))) return;
+    await call(`/api/admin/trucks/${id}/delete`);
+  } else {
+    const hidden = !card.classList.contains('done');
+    if (hidden && !confirm(t('a.confirmSuspend'))) return;
+    await call(`/api/admin/trucks/${id}/hide`, { hidden });
+  }
+  loadShops();
+});
+
+for (const b of document.querySelectorAll('[data-view]')) {
+  b.addEventListener('click', () => {
+    for (const x of document.querySelectorAll('[data-view]')) x.setAttribute('aria-pressed', String(x === b));
+    $('view-feedback').classList.toggle('hidden', b.dataset.view !== 'feedback');
+    $('view-shops').classList.toggle('hidden', b.dataset.view !== 'shops');
+    if (b.dataset.view === 'shops') loadShops();
+  });
+}
+
+// Full data backup as a file, to keep somewhere other than the server.
+$('backup').addEventListener('click', async () => {
+  const data = await call('/api/admin/backup');
+  const day = new Date().toISOString().slice(0, 10);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  a.download = `lampus-backup-${day}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
 $('refresh').addEventListener('click', load);
 $('logout').addEventListener('click', () => { setKey(''); location.reload(); });
 

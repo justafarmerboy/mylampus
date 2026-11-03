@@ -10,6 +10,7 @@
       'title.map': 'LAMPUS — หิ่งห้อยฟู้ดทรัค',
       'title.owner': 'LAMPUS — สำหรับเจ้าของร้าน',
       'title.admin': 'LAMPUS — ความคิดเห็น',
+      'privacy': 'ความเป็นส่วนตัว',
       'lang.switch': 'EN',
       'lang.switchLabel': 'Switch to English',
 
@@ -75,6 +76,9 @@
       'chat.confirmDelete': 'ลบแชทนี้? ลูกค้าจะไม่เห็นแชทนี้อีก',
       'o.chats': '💬 ข้อความจากลูกค้า',
       'o.noChats': 'ยังไม่มีข้อความจากลูกค้า',
+      'o.notifyOn': '🔔 เปิดการแจ้งเตือนข้อความใหม่',
+      'o.notifyTitle': 'ข้อความใหม่จากลูกค้า',
+      'o.notifyBody': '{name}: {text}',
 
       'install.tipLabel': 'วิธีติดตั้งแอป',
       'install.tip': '<b>ติดตั้ง LAMPUS บน iPhone</b><ol><li>เปิดหน้านี้ใน <b>Safari</b></li><li>กดปุ่ม <b>แชร์</b> (สี่เหลี่ยมมีลูกศรชี้ขึ้น)</li><li>เลือก <b>เพิ่มไปยังหน้าจอโฮม</b></li></ol><small>แตะเพื่อปิด</small>',
@@ -192,11 +196,23 @@
       'a.empty': 'ไม่มีข้อความ ✦',
       'a.wrongKey': 'รหัสไม่ถูกต้อง',
       'a.noKey': 'ยังไม่ได้ตั้ง ADMIN_KEY บนเซิร์ฟเวอร์',
+      'a.tabFeedback': '💬 ความคิดเห็น',
+      'a.tabShops': '🚚 ร้านทั้งหมด',
+      'a.backup': '⬇ ดาวน์โหลดข้อมูลสำรอง',
+      'a.suspended': '⛔ ระงับอยู่',
+      'a.lastOpen': 'เปิดล่าสุด',
+      'a.view': 'ดูหน้าร้าน',
+      'a.suspend': 'ระงับร้าน',
+      'a.unsuspend': 'ยกเลิกการระงับ',
+      'a.noShops': 'ยังไม่มีร้าน',
+      'a.confirmSuspend': 'ระงับร้านนี้? ร้านจะหายจากแผนที่และเปิดร้านไม่ได้จนกว่าจะยกเลิก',
+      'a.confirmDeleteShop': 'ลบร้านนี้ถาวร? ข้อมูลร้าน รูป และแชททั้งหมดจะหายและกู้คืนไม่ได้',
     },
     en: {
       'title.map': 'LAMPUS — Food truck fireflies',
       'title.owner': 'LAMPUS — For truck owners',
       'title.admin': 'LAMPUS — Feedback',
+      'privacy': 'Privacy',
       'lang.switch': 'ไทย',
       'lang.switchLabel': 'เปลี่ยนเป็นภาษาไทย',
 
@@ -262,6 +278,9 @@
       'chat.confirmDelete': 'Delete this chat? The customer will no longer see it.',
       'o.chats': '💬 Customer messages',
       'o.noChats': 'No messages from customers yet',
+      'o.notifyOn': '🔔 Turn on new-message alerts',
+      'o.notifyTitle': 'New message from a customer',
+      'o.notifyBody': '{name}: {text}',
 
       'install.tipLabel': 'How to install the app',
       'install.tip': '<b>Install LAMPUS on iPhone</b><ol><li>Open this page in <b>Safari</b></li><li>Tap <b>Share</b> (the square with an up arrow)</li><li>Choose <b>Add to Home Screen</b></li></ol><small>Tap to close</small>',
@@ -379,6 +398,17 @@
       'a.empty': 'No messages ✦',
       'a.wrongKey': 'Wrong key',
       'a.noKey': 'ADMIN_KEY is not set on the server',
+      'a.tabFeedback': '💬 Feedback',
+      'a.tabShops': '🚚 All shops',
+      'a.backup': '⬇ Download backup',
+      'a.suspended': '⛔ Suspended',
+      'a.lastOpen': 'Last open',
+      'a.view': 'View page',
+      'a.suspend': 'Suspend',
+      'a.unsuspend': 'Unsuspend',
+      'a.noShops': 'No shops yet',
+      'a.confirmSuspend': 'Suspend this shop? It disappears from the map and cannot open until you unsuspend it.',
+      'a.confirmDeleteShop': 'Delete this shop permanently? Its details, photos and chats are removed and cannot be recovered.',
     },
   };
 
@@ -425,6 +455,56 @@
   apply();
   document.addEventListener('click', (e) => { if (e.target.closest('[data-lang-toggle]')) switchLang(); });
 
-  window.I18N = { lang, locale: lang === 'th' ? 'th-TH' : 'en-US', t, apply };
+  // Server errors arrive as short English phrases; turn the known ones into readable text.
+  const FIELDS = {
+    th: { name: 'ชื่อร้าน', menu: 'คำอธิบายร้าน', text: 'ข้อความ', contact: 'ช่องทางติดต่อ', guestName: 'ชื่อ', message: 'ข้อความ' },
+    en: { name: 'Shop name', menu: 'Shop description', text: 'Message', contact: 'Contact', guestName: 'Name', message: 'Message' },
+  };
+  const ERRORS = {
+    th: [
+      [/^item (\d+) name is required$/, (m) => `ใส่ชื่อเมนูรายการที่ ${m[1]}`],
+      [/^item (\d+) (name|description) is too long \(max (\d+)\)$/, (m) => `${m[2] === 'name' ? 'ชื่อ' : 'รายละเอียด'}เมนูรายการที่ ${m[1]} ยาวเกินไป (ไม่เกิน ${m[3]} ตัวอักษร)`],
+      [/^item (\d+): invalid price$/, (m) => `ราคาเมนูรายการที่ ${m[1]} ไม่ถูกต้อง`],
+      [/^(\w+) is required$/, (m, f) => `กรุณาใส่${f(m[1])}`],
+      [/^(\w+) is too long \(max (\d+)\)$/, (m, f) => `${f(m[1])}ยาวเกินไป (ไม่เกิน ${m[2]} ตัวอักษร)`],
+      [/^at most (\d+) menu items$/, (m) => `เมนูได้ไม่เกิน ${m[1]} รายการ`],
+      [/^durationMin/, () => 'ระยะเวลาเปิดร้านไม่ถูกต้อง'],
+      [/^invalid (lat|lng)$/, () => 'ตำแหน่ง GPS ไม่ถูกต้อง ลองใหม่อีกครั้ง'],
+      [/^wrong token$/, () => 'รหัสร้านไม่ถูกต้อง'],
+      [/^truck not found$/, () => 'ไม่พบร้านนี้'],
+      [/^truck is closed$/, () => 'ร้านปิดอยู่'],
+      [/^this shop has been suspended$/, () => 'ร้านนี้ถูกระงับโดยผู้ดูแลระบบ ติดต่อผ่านปุ่มส่งความคิดเห็น'],
+      [/^invalid photo$/, () => 'รูปไม่ถูกต้อง ลองอัปโหลดใหม่'],
+      [/^only JPEG, PNG or WebP images$/, () => 'รองรับเฉพาะรูป JPEG, PNG หรือ WebP'],
+      [/^body too large$/, () => 'ไฟล์ใหญ่เกินไป'],
+      [/^too many images/, () => 'อัปโหลดรูปเยอะเกินไป กดบันทึกก่อนแล้วลองใหม่'],
+      [/^too many/, () => 'ทำรายการถี่เกินไป รอสักครู่แล้วลองใหม่'],
+      [/^internal error$/, () => 'เซิร์ฟเวอร์ขัดข้อง ลองใหม่อีกครั้ง'],
+    ],
+    en: [
+      [/^item (\d+) name is required$/, (m) => `Enter a name for menu item ${m[1]}`],
+      [/^item (\d+): invalid price$/, (m) => `The price of menu item ${m[1]} is not valid`],
+      [/^(\w+) is required$/, (m, f) => `${f(m[1])} is required`],
+      [/^(\w+) is too long \(max (\d+)\)$/, (m, f) => `${f(m[1])} is too long (max ${m[2]} characters)`],
+      [/^wrong token$/, () => 'Wrong shop code'],
+      [/^durationMin/, () => 'Please choose how long to stay open'],
+      [/^invalid (lat|lng)$/, () => 'Your GPS position looks wrong — please try again'],
+      [/^this shop has been suspended$/, () => 'This shop was suspended by the administrator. Contact us with the feedback button.'],
+      [/^too many/, () => 'Too many requests — please wait a moment and try again'],
+      [/^internal error$/, () => 'Server error — please try again'],
+    ],
+  };
+
+  function err(message) {
+    const text = String(message || '');
+    const field = (k) => FIELDS[lang][k] || k;
+    for (const [re, fn] of ERRORS[lang]) {
+      const m = text.match(re);
+      if (m) return fn(m, field);
+    }
+    return lang === 'en' ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+  }
+
+  window.I18N = { lang, locale: lang === 'th' ? 'th-TH' : 'en-US', t, apply, err };
   window.t = t;
 })();

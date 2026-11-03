@@ -43,7 +43,7 @@ async function api(path, body) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(data.error || `HTTP ${res.status}`);
+    const err = new Error(I18N.err(data.error || `HTTP ${res.status}`));
     err.status = res.status;
     throw err;
   }
@@ -200,7 +200,7 @@ async function uploadImage(file) {
     body: blob,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(I18N.err(data.error || `HTTP ${res.status}`));
   return data.url;
 }
 
@@ -471,23 +471,54 @@ $('logout').addEventListener('click', () => {
 // ---------- Customer messages ----------
 
 let ownerThread = null;
+let lastUnread = null;          // null until the first load, so old messages don't alert
+const baseTitle = document.title;
+
+// Tell the owner about new messages: tab title, vibration and (if allowed) a system notification.
+function alertNewMessages(list, unread) {
+  document.title = unread ? `(${unread}) ${baseTitle}` : baseTitle;
+  if (lastUnread != null && unread > lastUnread) {
+    const newest = list.filter((c) => c.unread).sort((a, b) => b.lastAt - a.lastAt)[0];
+    navigator.vibrate?.([120, 60, 120]);
+    if (newest && 'Notification' in window && Notification.permission === 'granted') {
+      const body = t('o.notifyBody', { name: newest.guestName || t('chat.guest'), text: newest.last?.text || '' });
+      const opts = { body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', tag: 'lampus-chat', renotify: true, data: { url: '/owner' } };
+      navigator.serviceWorker?.ready
+        .then((reg) => reg.showNotification(t('o.notifyTitle'), opts))
+        .catch(() => { try { new Notification(t('o.notifyTitle'), opts); } catch { /* not supported */ } });
+    }
+  }
+  lastUnread = unread;
+}
+
+function renderNotifyButton() {
+  const show = 'Notification' in window && Notification.permission === 'default';
+  $('notify-btn').classList.toggle('hidden', !show);
+}
+
+$('notify-btn').addEventListener('click', async () => {
+  await Notification.requestPermission().catch(() => {});
+  renderNotifyButton();
+});
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 async function loadChats() {
-  if (!creds || !truck || ownerThread) return;
+  if (!creds || !truck) return;
+  renderNotifyButton();
   let list;
   try {
     list = (await api(`/api/trucks/${creds.id}/chats`, { token: creds.token })).chats;
   } catch {
     return;
   }
-  if (ownerThread) return;
   const unread = list.reduce((n, c) => n + c.unread, 0);
+  alertNewMessages(list, unread);
   $('chats-count').textContent = unread;
   $('chats-count').classList.toggle('hidden', !unread);
+  if (ownerThread) return; // keep the open conversation on screen
   $('chats').innerHTML = list.length ? list.map((c) => `
     <div class="mine-row">
       <button type="button" class="mine-main" data-owner-chat="${c.id}" data-name="${escapeHtml(c.guestName || t('chat.guest'))}">
@@ -501,7 +532,7 @@ async function loadChats() {
 $('chats').addEventListener('click', (e) => {
   const row = e.target.closest('[data-owner-chat]');
   if (!row) return;
-  const back = () => { ownerThread = null; loadChats(); };
+  const back = () => { ownerThread = null; lastUnread = null; loadChats(); };
   $('chats').innerHTML = '<div class="owner-chat"></div>';
   ownerThread = ChatView($('chats').firstElementChild, {
     id: row.dataset.ownerChat,
@@ -514,7 +545,10 @@ $('chats').addEventListener('click', (e) => {
   });
 });
 
-setInterval(() => { if (document.visibilityState === 'visible') loadChats(); }, 20000);
+// Keep checking in a background tab too, so the owner hears about new messages.
+setInterval(loadChats, 15000);
+
+if (I18N.lang === 'en') $('privacy-link').href = '/privacy?lang=en';
 
 // ---------- Boot ----------
 

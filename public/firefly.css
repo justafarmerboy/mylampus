@@ -707,3 +707,6 @@ textarea { resize: vertical; min-height: 60px; }
 .link-row a { color: var(--muted); font-size: 13px; }
 a.btn { display: block; text-align: center; text-decoration: none; }
 .shop-page .owner-top a { text-decoration: none; }
+
+.privacy ul { margin: 0; padding-left: 20px; line-height: 1.7; }
+.privacy li + li { margin-top: 6px; }
