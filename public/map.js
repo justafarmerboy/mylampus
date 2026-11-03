@@ -106,6 +106,10 @@ function sheetHtml(truck) {
       ${truck.menu ? `<p class="about">${escapeHtml(truck.menu)}</p>` : ''}
       <div class="when">${t('sheet.openUntil', { time: formatClock(truck.openUntil) })} · <b data-left="${truck.id}">${formatLeft(truck.openUntil - serverNow())}</b></div>
       <div class="loc" data-loc="${truck.id}">${locationText(truck)}</div>
+      <div class="sheet-actions">
+        <button type="button" class="btn ghost" data-fav="${truck.id}" aria-pressed="${Boolean(window.Mine?.isFav(truck.id))}">${t(window.Mine?.isFav(truck.id) ? 'sheet.saved' : 'sheet.save')}</button>
+        <button type="button" class="btn ghost" data-chat="${truck.id}">${t('sheet.message')}</button>
+      </div>
       ${menuSection(t('sheet.food'), items.filter((i) => i.category !== 'drink'))}
       ${menuSection(t('sheet.drinks'), items.filter((i) => i.category === 'drink'))}
       <a class="btn nav" href="${nav}" target="_blank" rel="noopener">${t('sheet.nav')}</a>
@@ -120,6 +124,7 @@ let sheetId = null;
 function openSheet(id) {
   const ff = fireflies.get(id);
   if (!ff) return;
+  window.Mine?.closePanel();
   sheetId = id;
   sheet.style.setProperty('--c', ff.truck.color);
   sheet.innerHTML = sheetHtml(ff.truck);
@@ -135,7 +140,10 @@ function closeSheet() {
 }
 
 sheet.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) closeSheet(); });
-map.on('click', closeSheet);
+map.on('click', () => {
+  closeSheet();
+  window.Mine?.closePanel();
+});
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 
 function fireflyHtml(truck, seed) {
@@ -184,6 +192,7 @@ function upsert(truck) {
     .addTo(map);
   const el = marker.getElement().querySelector('.firefly');
   el.addEventListener('animationend', () => el.classList.remove('igniting'), { once: true });
+  el.classList.toggle('fav', Boolean(window.Mine?.isFav(truck.id)));
   const ff = { truck, marker, el, seed, cur: [truck.lat, truck.lng], target: [truck.lat, truck.lng], prev: null, phase: 0, speed: 1 };
   fireflies.set(truck.id, ff);
   updateFreshness(ff);

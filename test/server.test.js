@@ -208,3 +208,56 @@ test('admin is disabled without ADMIN_KEY', async (t) => {
   t.after(app.stop);
   assert.equal((await app.post('/api/admin/feedback', { key: '' })).status, 503);
 });
+
+test('private chat between a customer and a truck', async (t) => {
+  const app = await start();
+  t.after(app.stop);
+  const owner = (await app.post('/api/trucks', { name: 'H' })).body;
+  const other = (await app.post('/api/trucks', { name: 'I' })).body;
+
+  assert.equal((await app.post('/api/chats', { truckId: 'nope' })).status, 404);
+  const c = (await app.post('/api/chats', { truckId: owner.id, guestName: 'Nok' })).body;
+  assert.equal(c.truckName, 'H');
+
+  // Empty chats stay hidden from the owner until the customer writes.
+  assert.equal((await app.post(`/api/trucks/${owner.id}/chats`, { token: owner.token })).body.chats.length, 0);
+  assert.equal((await app.post(`/api/chats/${c.id}/send`, { token: c.token, text: 'มีข้าวมันไก่ไหม' })).status, 201);
+  assert.equal((await app.post(`/api/chats/${c.id}/send`, { token: c.token, text: '  ' })).status, 400);
+
+  let list = (await app.post(`/api/trucks/${owner.id}/chats`, { token: owner.token })).body.chats;
+  assert.deepEqual([list.length, list[0].guestName, list[0].unread, list[0].last.text], [1, 'Nok', 1, 'มีข้าวมันไก่ไหม']);
+
+  // Other people can't read or write it.
+  assert.equal((await app.post(`/api/chats/${c.id}`, { token: other.token })).status, 403);
+  assert.equal((await app.post(`/api/chats/${c.id}/send`, { token: 'x', text: 'hi' })).status, 403);
+
+  // Owner reads (clears unread) and replies; customer sees one unread reply.
+  const read = (await app.post(`/api/chats/${c.id}`, { token: owner.token })).body;
+  assert.equal(read.role, 'owner');
+  assert.equal(read.messages.length, 1);
+  assert.equal((await app.post(`/api/trucks/${owner.id}/chats`, { token: owner.token })).body.chats[0].unread, 0);
+  await app.post(`/api/chats/${c.id}/send`, { token: owner.token, text: 'มีครับ' });
+  const sum = (await app.post('/api/chats-summary', { chats: [{ id: c.id, token: c.token }, { id: 'gone', token: 'x' }] })).body.chats;
+  assert.deepEqual([sum[0].unread, sum[0].last.from, sum[1].gone], [1, 'owner', true]);
+
+  // `since` returns only newer messages.
+  const newer = (await app.post(`/api/chats/${c.id}`, { token: c.token, since: 1 })).body.messages;
+  assert.deepEqual(newer.map((m) => [m.n, m.from, m.text]), [[2, 'owner', 'มีครับ']]);
+
+  // Only the owner can delete.
+  assert.equal((await app.post(`/api/chats/${c.id}/delete`, { token: c.token })).status, 403);
+  assert.equal((await app.post(`/api/chats/${c.id}/delete`, { token: owner.token })).status, 200);
+  assert.equal((await app.post(`/api/chats/${c.id}`, { token: c.token })).status, 404);
+});
+
+test('chat spam limits', async (t) => {
+  const app = await start();
+  t.after(app.stop);
+  const truck = (await app.post('/api/trucks', { name: 'J' })).body;
+  const c = (await app.post('/api/chats', { truckId: truck.id })).body;
+  for (let i = 0; i < 10; i++) assert.equal((await app.post(`/api/chats/${c.id}/send`, { token: c.token, text: `m${i}` })).status, 201);
+  assert.equal((await app.post(`/api/chats/${c.id}/send`, { token: c.token, text: 'too fast' })).status, 429);
+  assert.equal((await app.post(`/api/chats/${c.id}/send`, { token: truck.token, text: 'owner is not limited' })).status, 201);
+  for (let i = 0; i < 9; i++) assert.equal((await app.post('/api/chats', { truckId: truck.id })).status, 201);
+  assert.equal((await app.post('/api/chats', { truckId: truck.id })).status, 429);
+});

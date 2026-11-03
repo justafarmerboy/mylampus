@@ -353,6 +353,7 @@ $('register-form').addEventListener('submit', async (e) => {
     open = false;
     fillProfile();
     render();
+    loadChats();
     setMsg('msg', t('o.created'));
   } catch (err) {
     setMsg('register-msg', err.message, true);
@@ -443,10 +444,60 @@ $('copy-code').addEventListener('click', async () => {
 $('logout').addEventListener('click', () => {
   if (!confirm(t('o.confirmLogout'))) return;
   stopSharing();
+  ownerThread?.stop();
+  ownerThread = null;
   saveCreds(null);
   truck = null;
   render();
 });
+
+// ---------- Customer messages ----------
+
+let ownerThread = null;
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function loadChats() {
+  if (!creds || !truck || ownerThread) return;
+  let list;
+  try {
+    list = (await api(`/api/trucks/${creds.id}/chats`, { token: creds.token })).chats;
+  } catch {
+    return;
+  }
+  if (ownerThread) return;
+  const unread = list.reduce((n, c) => n + c.unread, 0);
+  $('chats-count').textContent = unread;
+  $('chats-count').classList.toggle('hidden', !unread);
+  $('chats').innerHTML = list.length ? list.map((c) => `
+    <div class="mine-row">
+      <button type="button" class="mine-main" data-owner-chat="${c.id}" data-name="${escapeHtml(c.guestName || t('chat.guest'))}">
+        <span class="dot${c.unread ? ' unread' : ''}"></span>
+        <span><b>${escapeHtml(c.guestName || t('chat.guest'))}</b><small>${escapeHtml(c.last?.text || '')}</small></span>
+      </button>
+      ${c.unread ? `<span class="count">${c.unread}</span>` : ''}
+    </div>`).join('') : `<p class="sub" style="margin:0">${t('o.noChats')}</p>`;
+}
+
+$('chats').addEventListener('click', (e) => {
+  const row = e.target.closest('[data-owner-chat]');
+  if (!row) return;
+  const back = () => { ownerThread = null; loadChats(); };
+  $('chats').innerHTML = '<div class="owner-chat"></div>';
+  ownerThread = ChatView($('chats').firstElementChild, {
+    id: row.dataset.ownerChat,
+    token: creds.token,
+    role: 'owner',
+    title: t('chat.with', { name: row.dataset.name }),
+    onBack: back,
+    onDelete: back,
+    onGone: () => setTimeout(back, 1500),
+  });
+});
+
+setInterval(() => { if (document.visibilityState === 'visible') loadChats(); }, 20000);
 
 // ---------- Boot ----------
 
@@ -459,6 +510,7 @@ async function loadTruck() {
     clockSkew = data.now - Date.now();
     fillProfile();
     render();
+    loadChats();
     if (open) {
       startSharing();
       setMsg('msg', t('o.resumed'));

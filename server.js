@@ -19,6 +19,11 @@ const FEEDBACK_KINDS = ['idea', 'bug', 'other'];
 const MAX_FEEDBACK = 2000;               // oldest messages are dropped beyond this
 const FEEDBACK_PER_IP = 5;               // at most this many messages…
 const FEEDBACK_WINDOW_MS = 10 * 60 * 1000; // …per IP in this window
+const MAX_CHAT_TEXT = 500;
+const MAX_CHAT_MESSAGES = 200;           // per chat; oldest dropped
+const MAX_CHATS_PER_TRUCK = 300;         // least recently active dropped
+const CHAT_MSGS_PER_MIN = 10;            // per chat, customer side
+const NEW_CHATS_PER_IP_HOUR = 10;
 const UPLOAD_URL = /^\/uploads\/([a-f0-9]{24}\.(?:jpg|png|webp))$/;
 const SWEEP_INTERVAL_MS = 5000;
 const COLORS = ['#d4ff4f', '#ffd84f', '#ff9f4f', '#4fffb0', '#4fd8ff', '#ff6fd8'];
@@ -85,6 +90,39 @@ class TruckStore {
   all() {
     return [...this.trucks.values()];
   }
+}
+
+// Private customer <-> truck conversations. Customers get an anonymous token per chat.
+class ChatStore {
+  constructor(file) {
+    this.file = file;
+    this.chats = new Map();
+    if (file && fs.existsSync(file)) {
+      try {
+        for (const c of JSON.parse(fs.readFileSync(file, 'utf8'))) this.chats.set(c.id, c);
+      } catch (err) {
+        console.error(`Could not read ${file}:`, err.message);
+      }
+    }
+  }
+
+  save() {
+    if (!this.file) return;
+    fs.mkdirSync(path.dirname(this.file), { recursive: true });
+    const tmp = `${this.file}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify([...this.chats.values()]));
+    fs.renameSync(tmp, this.file);
+  }
+
+  forTruck(truckId) {
+    return [...this.chats.values()].filter((c) => c.truckId === truckId);
+  }
+}
+
+// Messages the other side has written since this side last read the chat.
+function unreadFor(chat, role) {
+  const readAt = role === 'owner' ? chat.ownerReadN : chat.guestReadN;
+  return chat.messages.filter((m) => m.from !== role && m.n > readAt).length;
 }
 
 function hashToken(token) {
@@ -277,12 +315,53 @@ function createApp({
   publicDir = path.join(__dirname, 'public'),
   uploadsDir = path.join(path.dirname(dataFile), 'uploads'),
   feedbackFile = path.join(path.dirname(dataFile), 'feedback.json'),
+  chatsFile = path.join(path.dirname(dataFile), 'chats.json'),
   adminKey = process.env.ADMIN_KEY,
   now = Date.now,
 } = {}) {
   const store = new TruckStore(dataFile);
   const feedback = new FeedbackStore(feedbackFile);
   const feedbackHits = new Map(); // ip -> recent timestamps
+  const chats = new ChatStore(chatsFile);
+  const chatHits = new Map();     // ip -> recent chat creations; chat id -> recent customer messages
+
+  // Sliding-window limiter shared by feedback-style endpoints.
+  function limit(map, key, max, windowMs, message) {
+    const t = now();
+    const recent = (map.get(key) || []).filter((at) => t - at < windowMs);
+    if (recent.length >= max) throw new HttpError(429, message);
+    map.set(key, [...recent, t]);
+  }
+
+  function chatRole(chat, token) {
+    if (typeof token !== 'string' || !token) return null;
+    const a = Buffer.from(hashToken(token), 'hex');
+    const b = Buffer.from(chat.guestTokenHash, 'hex');
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) return 'guest';
+    const truck = store.get(chat.truckId);
+    return truck && tokenMatches(truck, token) ? 'owner' : null;
+  }
+
+  function authChat(id, token) {
+    const chat = chats.chats.get(id);
+    if (!chat) throw new HttpError(404, 'chat not found');
+    const role = chatRole(chat, token);
+    if (!role) throw new HttpError(403, 'wrong token');
+    return { chat, role };
+  }
+
+  function chatSummary(chat, role) {
+    const last = chat.messages[chat.messages.length - 1] || null;
+    return {
+      id: chat.id,
+      truckId: chat.truckId,
+      truckName: store.get(chat.truckId)?.name || null,
+      guestName: chat.guestName,
+      lastAt: chat.lastAt,
+      last: last && { from: last.from, text: last.text, at: last.at },
+      unread: unreadFor(chat, role),
+    };
+  }
 
   function authAdmin(body) {
     if (!adminKey) throw new HttpError(503, 'admin is not set up (ADMIN_KEY missing)');
@@ -467,6 +546,87 @@ function createApp({
       else feedback.items[idx].done = body.done !== false;
       feedback.save();
       return { ok: true };
+    }],
+
+    // A customer starts a private chat with a truck.
+    ['POST', /^\/api\/chats$/, async (req) => {
+      const body = await readJson(req);
+      const truck = store.get(body.truckId);
+      if (!truck) throw new HttpError(404, 'truck not found');
+      limit(chatHits, `ip:${clientIp(req)}`, NEW_CHATS_PER_IP_HOUR, 60 * 60 * 1000, 'too many new chats, try again later');
+      const mine = chats.forTruck(truck.id).sort((a, b) => a.lastAt - b.lastAt);
+      while (mine.length >= MAX_CHATS_PER_TRUCK) chats.chats.delete(mine.shift().id);
+      const token = crypto.randomBytes(24).toString('base64url');
+      const chat = {
+        id: crypto.randomBytes(8).toString('hex'),
+        truckId: truck.id,
+        guestTokenHash: hashToken(token),
+        guestName: cleanText(body.guestName, 'guestName', 30),
+        createdAt: now(),
+        lastAt: now(),
+        seq: 0,
+        messages: [],
+        ownerReadN: 0,
+        guestReadN: 0,
+      };
+      chats.chats.set(chat.id, chat);
+      chats.save();
+      return [201, { id: chat.id, token, truckName: truck.name }];
+    }],
+
+    // Read a chat (either side). `since` returns only newer messages; reading marks them read.
+    ['POST', /^\/api\/chats\/([\w-]+)$/, async (req, id) => {
+      const body = await readJson(req);
+      const { chat, role } = authChat(id, body.token);
+      const since = Number(body.since) || 0;
+      const lastN = chat.messages.length ? chat.messages[chat.messages.length - 1].n : 0;
+      const key = role === 'owner' ? 'ownerReadN' : 'guestReadN';
+      if (chat[key] !== lastN) {
+        chat[key] = lastN;
+        chats.save();
+      }
+      return { role, chat: chatSummary(chat, role), messages: chat.messages.filter((m) => m.n > since) };
+    }],
+
+    ['POST', /^\/api\/chats\/([\w-]+)\/send$/, async (req, id) => {
+      const body = await readJson(req);
+      const { chat, role } = authChat(id, body.token);
+      const text = cleanText(body.text, 'text', MAX_CHAT_TEXT, { required: true });
+      if (role === 'guest') limit(chatHits, `chat:${chat.id}`, CHAT_MSGS_PER_MIN, 60 * 1000, 'too many messages, slow down');
+      const message = { n: ++chat.seq, from: role, text, at: now() };
+      chat.messages.push(message);
+      if (chat.messages.length > MAX_CHAT_MESSAGES) chat.messages.splice(0, chat.messages.length - MAX_CHAT_MESSAGES);
+      chat.lastAt = message.at;
+      chat[role === 'owner' ? 'ownerReadN' : 'guestReadN'] = message.n;
+      chats.save();
+      return [201, { message }];
+    }],
+
+    ['POST', /^\/api\/chats\/([\w-]+)\/delete$/, async (req, id) => {
+      const { chat, role } = authChat(id, (await readJson(req)).token);
+      if (role !== 'owner') throw new HttpError(403, 'only the truck can delete a chat');
+      chats.chats.delete(chat.id);
+      chats.save();
+      return { ok: true };
+    }],
+
+    // Customer: status of the chats saved on this device ({ id, token } pairs).
+    ['POST', /^\/api\/chats-summary$/, async (req) => {
+      const body = await readJson(req);
+      if (!Array.isArray(body.chats) || body.chats.length > 50) throw new HttpError(400, 'chats must be a list (max 50)');
+      return {
+        chats: body.chats.map(({ id, token } = {}) => {
+          const chat = chats.chats.get(id);
+          return chat && chatRole(chat, token) === 'guest' ? chatSummary(chat, 'guest') : { id, gone: true };
+        }),
+      };
+    }],
+
+    // Owner: all chats for the truck, most recent first.
+    ['POST', /^\/api\/trucks\/([\w-]+)\/chats$/, async (req, id) => {
+      const truck = authTruck(id, await readJson(req));
+      const list = chats.forTruck(truck.id).filter((c) => c.messages.length).sort((a, b) => b.lastAt - a.lastAt);
+      return { chats: list.map((c) => chatSummary(c, 'owner')) };
     }],
 
     ['GET', /^\/api\/events$/, (req, res) => {
