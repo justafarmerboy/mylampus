@@ -113,6 +113,7 @@ function sheetHtml(truck) {
       ${menuSection(t('sheet.food'), items.filter((i) => i.category !== 'drink'))}
       ${menuSection(t('sheet.drinks'), items.filter((i) => i.category === 'drink'))}
       <a class="btn nav" href="${nav}" target="_blank" rel="noopener">${t('sheet.nav')}</a>
+      <a class="shop-link" href="/t/${truck.id}${I18N.lang === 'en' ? '?lang=en' : ''}">${t('sheet.page')}</a>
     </div>`;
 }
 
@@ -283,6 +284,13 @@ function applySnapshot(data) {
   for (const id of fireflies.keys()) if (!ids.has(id)) extinguish(id);
   for (const t of data.trucks) upsert(t);
   updateCounter();
+  // Deep link from a shop page or a shared link: /?truck=<id>
+  const wanted = new URLSearchParams(location.search).get('truck');
+  if (wanted && firstFit && fireflies.has(wanted)) {
+    firstFit = false;
+    map.setView(fireflies.get(wanted).target, 16);
+    openSheet(wanted);
+  }
   if (firstFit && data.trucks.length) {
     firstFit = false;
     map.fitBounds(L.latLngBounds(data.trucks.map((t) => [t.lat, t.lng])).pad(0.4), { maxZoom: 16 });

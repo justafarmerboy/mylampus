@@ -261,3 +261,49 @@ test('chat spam limits', async (t) => {
   for (let i = 0; i < 9; i++) assert.equal((await app.post('/api/chats', { truckId: truck.id })).status, 201);
   assert.equal((await app.post('/api/chats', { truckId: truck.id })).status, 429);
 });
+
+test('shop pages, sitemap and robots for search engines', async (t) => {
+  let clock = 1_800_000_000_000;
+  const app = await start({ now: () => clock, siteUrl: 'https://lampus.app' });
+  t.after(app.stop);
+  const page = async (p) => { const r = await fetch(app.base + p); return { status: r.status, type: r.headers.get('content-type'), text: await r.text() }; };
+
+  const { id, token } = (await app.post('/api/trucks', { name: 'Pad Thai <script>alert(1)</script>', menu: 'เส้นจันท์' })).body;
+  const never = (await app.post('/api/trucks', { name: 'Never opened' })).body;
+  await app.post(`/api/trucks/${id}/profile`, { token, items: [{ name: 'ผัดไทยกุ้งสด', price: 60 }, { name: 'ชาเย็น', price: 25, category: 'drink', soldOut: true }] });
+  await app.post(`/api/trucks/${id}/open`, { token, durationMin: 60, lat: 13.7, lng: 100.5 });
+
+  let p = await page(`/t/${id}`);
+  assert.equal(p.status, 200);
+  assert.match(p.type, /text\/html/);
+  assert.ok(!p.text.includes('<script>alert(1)'), 'name is escaped in HTML');
+  assert.match(p.text, /<h1>Pad Thai &lt;script&gt;/);
+  assert.match(p.text, /ผัดไทยกุ้งสด/);
+  assert.match(p.text, /฿60/);
+  assert.match(p.text, /เปิดอยู่ตอนนี้/);
+  assert.match(p.text, /<link rel="canonical" href="https:\/\/lampus.app\/t\//);
+  assert.ok(!p.text.includes('noindex'));
+  const ld = JSON.parse(p.text.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
+  assert.equal(ld['@type'], 'FoodEstablishment');
+  assert.equal(ld.hasMenu.hasMenuSection[1].hasMenuItem[0].offers.availability, 'https://schema.org/SoldOut');
+
+  // Closed shops stay findable but say so; never-opened shops are not indexed.
+  await app.post(`/api/trucks/${id}/close`, { token });
+  p = await page(`/t/${id}?lang=en`);
+  assert.match(p.text, /<html lang="en">/);
+  assert.match(p.text, /Closed right now/);
+  assert.match(p.text, /Last open/);
+  assert.match((await page(`/t/${never.id}`)).text, /noindex/);
+  assert.equal((await page('/t/missing')).status, 404);
+
+  const sm = await page('/sitemap.xml');
+  assert.match(sm.type, /xml/);
+  assert.ok(sm.text.includes(`https://lampus.app/t/${id}`));
+  assert.ok(!sm.text.includes(never.id), 'never-opened shops are left out');
+  clock += 100 * 864e5;
+  assert.ok(!(await page('/sitemap.xml')).text.includes(id), 'long-inactive shops drop out');
+
+  const rb = await page('/robots.txt');
+  assert.match(rb.text, /Disallow: \/admin/);
+  assert.match(rb.text, /Sitemap: https:\/\/lampus.app\/sitemap.xml/);
+});

@@ -145,7 +145,24 @@ function fillProfile() {
   items = (truck.items || []).map((i) => ({ ...i }));
   renderItems();
   $('code').value = `${creds.id}.${creds.token}`;
+  const shopUrl = `${location.origin}/t/${creds.id}`;
+  $('shop-url').value = shopUrl;
+  $('view-shop').href = shopUrl;
 }
+
+$('share-shop').addEventListener('click', async () => {
+  const url = $('shop-url').value;
+  if (navigator.share) {
+    navigator.share({ title: truck?.name || 'LAMPUS', url }).catch(() => {});
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    $('share-shop').textContent = t('o.copied');
+  } catch {
+    $('shop-url').select();
+  }
+});
 
 // ---------- Photos & menu items ----------
 

@@ -7,6 +7,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const seo = require('./seo');
 
 const MIN_DURATION_MIN = 15;
 const MAX_DURATION_MIN = 60;
@@ -317,6 +318,7 @@ function createApp({
   feedbackFile = path.join(path.dirname(dataFile), 'feedback.json'),
   chatsFile = path.join(path.dirname(dataFile), 'chats.json'),
   adminKey = process.env.ADMIN_KEY,
+  siteUrl = (process.env.SITE_URL || 'https://lampus.app').replace(/\/$/, ''),
   now = Date.now,
 } = {}) {
   const store = new TruckStore(dataFile);
@@ -480,6 +482,7 @@ function createApp({
       const minutes = cleanDuration(body.durationMin);
       const t = now();
       if (!isOpen(truck, t)) truck.openedAt = t;
+      truck.lastOpenedAt = t; // kept after closing, for the shop page and sitemap
       truck.lat = lat;
       truck.lng = lng;
       truck.locatedAt = t;
@@ -671,6 +674,36 @@ function createApp({
     });
   }
 
+  // Server-rendered pages for search engines and link previews.
+  function servePage(req, res, pathname) {
+    let body;
+    let type = 'text/html; charset=utf-8';
+    const shop = pathname.match(/^\/t\/([\w-]+)$/);
+    if (shop) {
+      const truck = store.get(shop[1]);
+      if (!truck) {
+        const html = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>LAMPUS</title><meta name="robots" content="noindex"><link rel="stylesheet" href="/firefly.css"><main class="owner"><h1>✦ LAMPUS</h1><p class="sub">ไม่พบร้านนี้ · Shop not found</p><a class="btn" href="/">แผนที่ · Map →</a></main>';
+        res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
+        return true;
+      }
+      sweep();
+      const lang = new URL(req.url, 'http://localhost').searchParams.get('lang') === 'en' ? 'en' : 'th';
+      body = seo.renderShopPage({ site: siteUrl, truck, lang, open: isOpen(truck, now()), now: now() });
+    } else if (pathname === '/sitemap.xml') {
+      body = seo.sitemap({ site: siteUrl, trucks: store.all(), now: now() });
+      type = 'application/xml; charset=utf-8';
+    } else if (pathname === '/robots.txt') {
+      body = seo.robots({ site: siteUrl });
+      type = 'text/plain; charset=utf-8';
+    } else {
+      return false;
+    }
+    res.writeHead(200, { 'Content-Type': type, 'Content-Length': Buffer.byteLength(body), 'Cache-Control': 'no-cache' });
+    res.end(req.method === 'HEAD' ? undefined : body);
+    return true;
+  }
+
   async function handler(req, res) {
     try {
       const { pathname } = new URL(req.url, 'http://localhost');
@@ -687,6 +720,7 @@ function createApp({
         throw new HttpError(404, 'no such endpoint');
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'method not allowed');
+      if (servePage(req, res, pathname)) return;
       serveStatic(req, res);
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 500;

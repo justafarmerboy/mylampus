@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title data-i18n="title.owner">LAMPUS — สำหรับเจ้าของร้าน</title>
   <meta name="theme-color" content="#070b14">
+  <meta name="description" content="ฟู้ดทรัคของคุณ: เปิดร้านแล้วลูกค้าเห็นคุณบนแผนที่ทันที ใส่เมนู ราคา รูป และคุยกับลูกค้าได้ ฟรี · Put your food truck on the live map, free.">
+  <link rel="canonical" href="https://lampus.app/owner">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="LAMPUS">
+  <meta property="og:title" content="LAMPUS — ปักหมุดฟู้ดทรัคของคุณบนแผนที่">
+  <meta property="og:description" content="เปิดร้านแล้วลูกค้าเห็นคุณเป็นหิ่งห้อยบนแผนที่ ฟรี · Put your food truck on the live map, free.">
+  <meta property="og:image" content="https://lampus.app/og.png">
+  <meta property="og:url" content="https://lampus.app/owner">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -113,6 +122,16 @@
         <div class="msg" id="profile-msg"></div>
       </div>
       <input type="file" id="file" accept="image/*" class="hidden">
+
+      <div class="card">
+        <h2 data-i18n="o.shareHead">🔗 ลิงก์หน้าร้าน</h2>
+        <p class="sub" style="margin:0" data-i18n="o.shareHint"></p>
+        <input id="shop-url" readonly style="margin-top:10px">
+        <div class="link-row">
+          <button type="button" id="share-shop" data-i18n="o.share">แชร์</button>
+          <a id="view-shop" target="_blank" rel="noopener" data-i18n="o.view">เปิดดู</a>
+        </div>
+      </div>
 
       <div class="card">
         <h2 data-i18n="o.codeHead">รหัสร้าน</h2>

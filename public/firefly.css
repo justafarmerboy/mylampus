@@ -692,3 +692,18 @@ textarea { resize: vertical; min-height: 60px; }
 .chats-head { display: flex; align-items: center; gap: 8px; }
 .chats-head .count { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 12px; }
 .owner-chat { display: flex; height: 60vh; min-height: 360px; }
+
+/* ---------- Shop page (server-rendered, /t/:id) ---------- */
+
+.shop-link { display: block; margin-top: 12px; text-align: center; font-size: 14px; color: var(--muted); }
+.shop-page .owner-top b { color: var(--glow); letter-spacing: 0.04em; }
+.shop-page h1 { font-size: 26px; margin-top: 16px; }
+.shop-cover { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 16px; margin-top: 16px; }
+.shop-status .status .dot { background: #333a48; }
+.shop-status .status.on .dot { background: var(--c, var(--glow)); box-shadow: 0 0 10px 3px var(--c, var(--glow)); }
+.shop-menu h3 { font-size: 15px; margin: 16px 0 4px; color: var(--c, var(--glow)); }
+.shop-foot { text-align: center; margin-top: 24px; }
+.shop-foot a { color: var(--muted); }
+.link-row a { color: var(--muted); font-size: 13px; }
+a.btn { display: block; text-align: center; text-decoration: none; }
+.shop-page .owner-top a { text-decoration: none; }
