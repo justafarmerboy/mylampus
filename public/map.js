@@ -87,7 +87,7 @@ function menuSection(title, list) {
   if (!list.length) return '';
   return `<h3>${title}</h3>` + list.map((i) => `
     <div class="menu-item${i.soldOut ? ' sold-out' : ''}">
-      ${i.photo ? `<img src="${escapeHtml(i.photo)}" alt="" loading="lazy">` : ''}
+      ${i.photo ? `<img src="${escapeHtml(i.photo)}" alt="${escapeHtml(i.name)}" data-zoom="${escapeHtml(i.photo)}" loading="lazy">` : ''}
       <div class="info">
         <div class="name">${escapeHtml(i.name)}</div>
         ${i.desc ? `<div class="desc">${escapeHtml(i.desc)}</div>` : ''}
@@ -101,7 +101,7 @@ function sheetHtml(truck) {
   const items = truck.items || [];
   return `
     <button class="close-x" data-close aria-label="${t('sheet.close')}">✕</button>
-    ${truck.photo ? `<img class="cover" src="${escapeHtml(truck.photo)}" alt="">` : ''}
+    ${truck.photo ? `<img class="cover" src="${escapeHtml(truck.photo)}" alt="${escapeHtml(truck.name)}" data-zoom="${escapeHtml(truck.photo)}">` : ''}
     <div class="body">
       <h2>${escapeHtml(truck.name)}</h2>
       ${truck.menu ? `<p class="about">${escapeHtml(truck.menu)}</p>` : ''}

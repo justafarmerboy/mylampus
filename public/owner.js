@@ -140,8 +140,7 @@ function fillProfile() {
   $('p-menu').value = truck.menu || '';
   profileColor = truck.color;
   makeSwatches($('p-swatches'), truck.color, (c) => { profileColor = c; });
-  coverPhoto = truck.photo || null;
-  showPhoto($('p-cover'), coverPhoto);
+  showCover(truck.photo || null);
   items = (truck.items || []).map((i) => ({ ...i }));
   renderItems();
   $('code').value = `${creds.id}.${creds.token}`;
@@ -170,30 +169,49 @@ let coverPhoto = null;
 let items = [];
 let pickPhoto = null; // callback for the shared file input
 
+// With a photo, tapping the frame opens it full screen (lightbox.js reads data-zoom);
+// without one, tapping it picks a photo.
 function showPhoto(el, url) {
   el.style.backgroundImage = url ? `url("${url}")` : '';
   el.classList.toggle('has-photo', Boolean(url));
+  if (url) el.dataset.zoom = url;
+  else delete el.dataset.zoom;
 }
 
-// Shrink to at most 1024 px and re-encode as JPEG so uploads stay small.
-async function resizeImage(file, max = 1024) {
+function showCover(url) {
+  coverPhoto = url;
+  showPhoto($('p-cover'), url);
+  $('cover-actions').classList.toggle('hidden', !url);
+}
+
+// Photo shapes, matching how they are shown: shop photo 16:9, menu item square.
+const PHOTO_SIZES = { cover: [1280, 720], item: [480, 480] };
+
+// Center-crop to the target shape, shrink, and re-encode as JPEG so every photo
+// is small and fits its frame in any browser.
+async function resizeImage(file, [w, h]) {
   const img = await new Promise((resolve, reject) => {
     const i = new Image();
     i.onload = () => resolve(i);
     i.onerror = () => reject(new Error(t('o.badImage')));
     i.src = URL.createObjectURL(file);
   });
-  const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const srcW = img.naturalWidth;
+  const srcH = img.naturalHeight;
+  const crop = Math.min(srcW / w, srcH / h);          // largest w:h box that fits the photo
+  const cw = w * crop;
+  const ch = h * crop;
+  const scale = Math.min(1, w / cw);                  // never enlarge small photos
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(img.naturalWidth * scale);
-  canvas.height = Math.round(img.naturalHeight * scale);
-  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  canvas.width = Math.round(cw * scale);
+  canvas.height = Math.round(ch * scale);
+  canvas.getContext('2d').drawImage(img, (srcW - cw) / 2, (srcH - ch) / 2, cw, ch, 0, 0, canvas.width, canvas.height);
   URL.revokeObjectURL(img.src);
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(t('o.badImage')))), 'image/jpeg', 0.82));
 }
 
-async function uploadImage(file) {
-  const blob = await resizeImage(file);
+async function uploadImage(file, kind) {
+  const blob = await resizeImage(file, PHOTO_SIZES[kind]);
   const res = await fetch(`/api/trucks/${creds.id}/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'image/jpeg', 'X-Token': creds.token },
@@ -204,8 +222,8 @@ async function uploadImage(file) {
   return data.url;
 }
 
-function choosePhoto(onUrl) {
-  pickPhoto = onUrl;
+function choosePhoto(kind, onUrl) {
+  pickPhoto = { kind, onUrl };
   $('file').value = '';
   $('file').click();
 }
@@ -217,20 +235,17 @@ $('file').addEventListener('change', async () => {
   pickPhoto = null;
   setMsg('profile-msg', t('o.uploading'));
   try {
-    done(await uploadImage(file));
+    done.onUrl(await uploadImage(file, done.kind));
     setMsg('profile-msg', t('o.uploaded'));
   } catch (err) {
     setMsg('profile-msg', err.message, true);
   }
 });
 
-$('p-cover').addEventListener('click', () => {
-  if (coverPhoto && confirm(t('o.removeCover'))) {
-    coverPhoto = null;
-    showPhoto($('p-cover'), null);
-    return;
-  }
-  choosePhoto((url) => { coverPhoto = url; showPhoto($('p-cover'), url); });
+$('p-cover').addEventListener('click', () => choosePhoto('cover', showCover));
+$('cover-change').addEventListener('click', () => choosePhoto('cover', showCover));
+$('cover-remove').addEventListener('click', () => {
+  if (confirm(t('o.confirmRemovePhoto'))) showCover(null);
 });
 
 function renderItems() {
@@ -252,6 +267,10 @@ function renderItems() {
         <select class="cat"><option value="food">${t('o.catFood')}</option><option value="drink">${t('o.catDrink')}</option></select>
         <label><input type="checkbox" class="sold"> ${t('o.soldOut')}</label>
         <button type="button" class="del">${t('o.delete')}</button>
+      </div>
+      <div class="photo-actions">
+        <button type="button" class="photo-change">${t('o.changePhoto')}</button>
+        <button type="button" class="photo-remove danger-link">${t('o.removePhoto')}</button>
       </div>`;
     const q = (s) => row.querySelector(s);
     q('.name').value = item.name || '';
@@ -259,19 +278,21 @@ function renderItems() {
     q('.desc').value = item.desc || '';
     q('.cat').value = item.category || 'food';
     q('.sold').checked = Boolean(item.soldOut);
-    showPhoto(q('.thumb'), item.photo);
+    const setItemPhoto = (url) => {
+      item.photo = url;
+      showPhoto(q('.thumb'), url);
+      q('.photo-actions').classList.toggle('hidden', !url);
+    };
+    setItemPhoto(item.photo || null);
     q('.name').addEventListener('input', (e) => { item.name = e.target.value; });
     q('.price').addEventListener('input', (e) => { item.price = e.target.value; });
     q('.desc').addEventListener('input', (e) => { item.desc = e.target.value; });
     q('.cat').addEventListener('change', (e) => { item.category = e.target.value; });
     q('.sold').addEventListener('change', (e) => { item.soldOut = e.target.checked; });
-    q('.thumb').addEventListener('click', () => {
-      if (item.photo && confirm(t('o.removeItemPhoto'))) {
-        item.photo = null;
-        showPhoto(q('.thumb'), null);
-        return;
-      }
-      choosePhoto((url) => { item.photo = url; showPhoto(q('.thumb'), url); });
+    q('.thumb').addEventListener('click', () => choosePhoto('item', setItemPhoto));
+    q('.photo-change').addEventListener('click', () => choosePhoto('item', setItemPhoto));
+    q('.photo-remove').addEventListener('click', () => {
+      if (confirm(t('o.confirmRemovePhoto'))) setItemPhoto(null);
     });
     q('.del').addEventListener('click', () => {
       items.splice(idx, 1);

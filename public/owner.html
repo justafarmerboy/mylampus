@@ -105,6 +105,10 @@
         <form id="profile-form">
           <label data-i18n="o.cover">รูปหน้าร้าน</label>
           <button type="button" class="cover-pick" id="p-cover"><span data-i18n="o.addCover">📷 เพิ่มรูปหน้าร้าน</span></button>
+          <div class="photo-actions hidden" id="cover-actions">
+            <button type="button" id="cover-change" data-i18n="o.changePhoto">📷 เปลี่ยนรูป</button>
+            <button type="button" id="cover-remove" class="danger-link" data-i18n="o.removePhoto">🗑 ลบรูป</button>
+          </div>
           <label for="p-name" data-i18n="o.name">ชื่อร้าน</label>
           <input id="p-name" maxlength="60" required>
           <label for="p-menu" data-i18n="o.about">เมนูเด่น / คำอธิบาย</label>
@@ -151,6 +155,7 @@
   <div class="install-tip hidden" id="install-tip" role="dialog" data-i18n-label="install.tipLabel" data-i18n-html="install.tip"></div>
 
   <script src="/i18n.js"></script>
+  <script src="/lightbox.js"></script>
   <script src="/chat.js"></script>
   <script src="/owner.js"></script>
   <script src="/pwa.js"></script>
