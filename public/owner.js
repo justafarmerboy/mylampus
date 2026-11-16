@@ -7,6 +7,8 @@ const STORAGE_KEY = 'mylampus.owner';
 const SEND_EVERY_MS = 15000;   // at most one location update per 15 s…
 const SEND_MIN_METERS = 20;    // …unless the truck moved further than this
 const HEARTBEAT_MS = 60000;    // confirm the position at least this often, even when parked
+// Links and QR codes always point at the real domain, even when this page was opened elsewhere.
+const SITE = ['localhost', '127.0.0.1'].includes(location.hostname) ? location.origin : 'https://lampus.app';
 
 const $ = (id) => document.getElementById(id);
 
@@ -144,10 +146,72 @@ function fillProfile() {
   items = (truck.items || []).map((i) => ({ ...i }));
   renderItems();
   $('code').value = `${creds.id}.${creds.token}`;
-  const shopUrl = `${location.origin}/t/${creds.id}`;
+  const shopUrl = `${SITE}/t/${creds.id}`;
   $('shop-url').value = shopUrl;
   $('view-shop').href = shopUrl;
+  drawQr($('shop-qr'), shopUrl);
+  $('code-qr-box').classList.add('hidden');
+  $('show-code-qr').textContent = t('o.qrShow');
 }
+
+// ---------- QR codes ----------
+
+// Draw `text` as a QR code filling a square canvas (dark modules on white, 4-module quiet zone).
+function drawQr(canvas, text, x = 0, y = 0, size = canvas.width) {
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+  const n = qr.getModuleCount();
+  const cell = Math.floor(size / (n + 8));
+  const offset = Math.floor((size - cell * n) / 2);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x, y, size, size);
+  ctx.fillStyle = '#0b1020';
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (qr.isDark(r, c)) ctx.fillRect(x + offset + c * cell, y + offset + r * cell, cell, cell);
+    }
+  }
+}
+
+// A printable card: brand, shop name, QR and the address, as a PNG download.
+$('download-qr').addEventListener('click', () => {
+  const W = 900;
+  const H = 1200;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#0b1020';
+  ctx.textAlign = 'center';
+  ctx.font = '700 64px Prompt, sans-serif';
+  ctx.fillText('✦ LAMPUS', W / 2, 120);
+  ctx.font = '600 52px Prompt, sans-serif';
+  ctx.fillText(truck.name, W / 2, 210, W - 80);
+  drawQr(canvas, $('shop-url').value, 110, 260, 680);
+  ctx.font = '500 38px Prompt, sans-serif';
+  ctx.fillText(t('o.qrScan'), W / 2, 1010, W - 80);
+  ctx.fillStyle = '#5a6478';
+  ctx.font = '400 30px Prompt, sans-serif';
+  ctx.fillText($('shop-url').value.replace(/^https?:\/\//, ''), W / 2, 1080, W - 80);
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = `lampus-qr-${creds.id}.png`;
+  a.click();
+});
+
+// The shop code QR is a secret, so it stays hidden until asked for. It opens /owner with the
+// code after "#", which browsers never send to the server.
+$('show-code-qr').addEventListener('click', () => {
+  const box = $('code-qr-box');
+  const show = box.classList.contains('hidden');
+  if (show) drawQr($('code-qr'), `${SITE}/owner#code=${creds.id}.${creds.token}`);
+  box.classList.toggle('hidden', !show);
+  $('show-code-qr').textContent = t(show ? 'o.qrHide' : 'o.qrShow');
+});
 
 $('share-shop').addEventListener('click', async () => {
   const url = $('shop-url').value;
@@ -600,4 +664,14 @@ async function loadTruck() {
   }
 }
 
+// Arrived by scanning a shop code QR: sign in with it, then drop it from the address bar.
+function codeFromHash() {
+  const m = location.hash.match(/^#code=([\w-]+)\.([\w-]+)$/);
+  if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  if (creds && creds.id !== m[1] && !confirm(t('o.confirmSwitch'))) return;
+  saveCreds({ id: m[1], token: m[2] });
+}
+
+codeFromHash();
 loadTruck();

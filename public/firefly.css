@@ -739,3 +739,9 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 .photo-actions .danger-link { color: var(--danger); }
 .item .photo-actions { grid-column: 1 / 4; margin-top: 0; }
 .lightbox .close-x { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 18px; cursor: pointer; }
+
+/* ---------- QR codes (owner page) ---------- */
+
+.qr-box { display: flex; flex-direction: column; align-items: center; margin-top: 12px; }
+.qr-box canvas { width: 180px; height: 180px; border-radius: 12px; image-rendering: pixelated; }
+.qr-box .msg { text-align: center; }
