@@ -105,6 +105,10 @@
         <form id="profile-form">
           <label data-i18n="o.cover">รูปหน้าร้าน</label>
           <button type="button" class="cover-pick" id="p-cover"><span data-i18n="o.addCover">📷 เพิ่มรูปหน้าร้าน</span></button>
+          <div class="photo-actions hidden" id="cover-actions">
+            <button type="button" id="cover-change" data-i18n="o.changePhoto">📷 เปลี่ยนรูป</button>
+            <button type="button" id="cover-remove" class="danger-link" data-i18n="o.removePhoto">🗑 ลบรูป</button>
+          </div>
           <label for="p-name" data-i18n="o.name">ชื่อร้าน</label>
           <input id="p-name" maxlength="60" required>
           <label for="p-menu" data-i18n="o.about">เมนูเด่น / คำอธิบาย</label>
@@ -128,8 +132,10 @@
         <h2 data-i18n="o.shareHead">🔗 ลิงก์หน้าร้าน</h2>
         <p class="sub" style="margin:0" data-i18n="o.shareHint"></p>
         <input id="shop-url" readonly style="margin-top:10px">
+        <div class="qr-box"><canvas id="shop-qr" width="220" height="220" aria-label="QR"></canvas></div>
         <div class="link-row">
           <button type="button" id="share-shop" data-i18n="o.share">แชร์</button>
+          <button type="button" id="download-qr" data-i18n="o.qrDownload">⬇ ดาวน์โหลด QR สำหรับพิมพ์</button>
           <a id="view-shop" target="_blank" rel="noopener" data-i18n="o.view">เปิดดู</a>
         </div>
       </div>
@@ -138,6 +144,11 @@
         <h2 data-i18n="o.codeHead">รหัสร้าน</h2>
         <p class="sub" style="margin:0" data-i18n="o.codeHint">ใช้รหัสนี้เข้าร้านจากเครื่องอื่น เก็บไว้เป็นความลับ ใครมีรหัสนี้สามารถเปิด/ปิดร้านคุณได้</p>
         <input id="code" readonly style="margin-top:10px">
+        <button type="button" class="btn ghost" id="show-code-qr" data-i18n="o.qrShow">🔑 แสดง QR สำหรับเข้าร้านจากเครื่องอื่น</button>
+        <div class="qr-box hidden" id="code-qr-box">
+          <canvas id="code-qr" width="220" height="220" aria-label="QR"></canvas>
+          <p class="msg err" data-i18n="o.qrWarn"></p>
+        </div>
         <div class="link-row">
           <button type="button" id="copy-code" data-i18n="o.copy">คัดลอกรหัส</button>
           <button type="button" id="logout" data-i18n="o.logout">ออกจากเครื่องนี้</button>
@@ -151,6 +162,8 @@
   <div class="install-tip hidden" id="install-tip" role="dialog" data-i18n-label="install.tipLabel" data-i18n-html="install.tip"></div>
 
   <script src="/i18n.js"></script>
+  <script src="/vendor/qrcode/qrcode.js"></script>
+  <script src="/lightbox.js"></script>
   <script src="/chat.js"></script>
   <script src="/owner.js"></script>
   <script src="/pwa.js"></script>

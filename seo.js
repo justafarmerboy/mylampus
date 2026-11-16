@@ -96,7 +96,7 @@ function menuHtml(list, title, lang) {
   if (!list.length) return '';
   return `<h3>${esc(title)}</h3>${list.map((i) => `
       <div class="menu-item${i.soldOut ? ' sold-out' : ''}">
-        ${i.photo ? `<img src="${esc(i.photo)}" alt="${esc(i.name)}" loading="lazy" width="56" height="56">` : ''}
+        ${i.photo ? `<img src="${esc(i.photo)}" alt="${esc(i.name)}" data-zoom="${esc(i.photo)}" loading="lazy" width="56" height="56">` : ''}
         <div class="info"><div class="name">${esc(i.name)}</div>${i.desc ? `<div class="desc">${esc(i.desc)}</div>` : ''}</div>
         <div class="price" data-sold=" · ${esc(TEXT[lang].soldOut)}">${price(i.price, lang)}</div>
       </div>`).join('')}`;
@@ -140,6 +140,7 @@ function renderShopPage({ site, truck, lang, open, now }) {
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="/firefly.css">
   <script type="application/ld+json">${jsonLd(site, truck, lang)}</script>
+  <script src="/lightbox.js" defer></script>
 </head>
 <body>
   <main class="owner shop-page" style="--c:${esc(truck.color)}">
@@ -147,7 +148,7 @@ function renderShopPage({ site, truck, lang, open, now }) {
       <a href="/${lang === 'en' ? '?lang=en' : ''}"><b>✦ LAMPUS</b></a>
       <a class="install-link" href="${esc(shopUrl('', truck, other))}" hreflang="${other}">${esc(tx.other)}</a>
     </div>
-    ${truck.photo ? `<img class="shop-cover" src="${esc(truck.photo)}" alt="${esc(truck.name)}">` : ''}
+    ${truck.photo ? `<img class="shop-cover" src="${esc(truck.photo)}" alt="${esc(truck.name)}" data-zoom="${esc(truck.photo)}">` : ''}
     <h1>${esc(truck.name)}</h1>
     ${truck.menu ? `<p class="sub">${esc(truck.menu)}</p>` : ''}
     <div class="card shop-status${open ? ' on' : ''}">

@@ -7,6 +7,8 @@ const STORAGE_KEY = 'mylampus.owner';
 const SEND_EVERY_MS = 15000;   // at most one location update per 15 s…
 const SEND_MIN_METERS = 20;    // …unless the truck moved further than this
 const HEARTBEAT_MS = 60000;    // confirm the position at least this often, even when parked
+// Links and QR codes always point at the real domain, even when this page was opened elsewhere.
+const SITE = ['localhost', '127.0.0.1'].includes(location.hostname) ? location.origin : 'https://lampus.app';
 
 const $ = (id) => document.getElementById(id);
 
@@ -140,15 +142,76 @@ function fillProfile() {
   $('p-menu').value = truck.menu || '';
   profileColor = truck.color;
   makeSwatches($('p-swatches'), truck.color, (c) => { profileColor = c; });
-  coverPhoto = truck.photo || null;
-  showPhoto($('p-cover'), coverPhoto);
+  showCover(truck.photo || null);
   items = (truck.items || []).map((i) => ({ ...i }));
   renderItems();
   $('code').value = `${creds.id}.${creds.token}`;
-  const shopUrl = `${location.origin}/t/${creds.id}`;
+  const shopUrl = `${SITE}/t/${creds.id}`;
   $('shop-url').value = shopUrl;
   $('view-shop').href = shopUrl;
+  drawQr($('shop-qr'), shopUrl);
+  $('code-qr-box').classList.add('hidden');
+  $('show-code-qr').textContent = t('o.qrShow');
 }
+
+// ---------- QR codes ----------
+
+// Draw `text` as a QR code filling a square canvas (dark modules on white, 4-module quiet zone).
+function drawQr(canvas, text, x = 0, y = 0, size = canvas.width) {
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+  const n = qr.getModuleCount();
+  const cell = Math.floor(size / (n + 8));
+  const offset = Math.floor((size - cell * n) / 2);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x, y, size, size);
+  ctx.fillStyle = '#0b1020';
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (qr.isDark(r, c)) ctx.fillRect(x + offset + c * cell, y + offset + r * cell, cell, cell);
+    }
+  }
+}
+
+// A printable card: brand, shop name, QR and the address, as a PNG download.
+$('download-qr').addEventListener('click', () => {
+  const W = 900;
+  const H = 1200;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#0b1020';
+  ctx.textAlign = 'center';
+  ctx.font = '700 64px Prompt, sans-serif';
+  ctx.fillText('✦ LAMPUS', W / 2, 120);
+  ctx.font = '600 52px Prompt, sans-serif';
+  ctx.fillText(truck.name, W / 2, 210, W - 80);
+  drawQr(canvas, $('shop-url').value, 110, 260, 680);
+  ctx.font = '500 38px Prompt, sans-serif';
+  ctx.fillText(t('o.qrScan'), W / 2, 1010, W - 80);
+  ctx.fillStyle = '#5a6478';
+  ctx.font = '400 30px Prompt, sans-serif';
+  ctx.fillText($('shop-url').value.replace(/^https?:\/\//, ''), W / 2, 1080, W - 80);
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = `lampus-qr-${creds.id}.png`;
+  a.click();
+});
+
+// The shop code QR is a secret, so it stays hidden until asked for. It opens /owner with the
+// code after "#", which browsers never send to the server.
+$('show-code-qr').addEventListener('click', () => {
+  const box = $('code-qr-box');
+  const show = box.classList.contains('hidden');
+  if (show) drawQr($('code-qr'), `${SITE}/owner#code=${creds.id}.${creds.token}`);
+  box.classList.toggle('hidden', !show);
+  $('show-code-qr').textContent = t(show ? 'o.qrHide' : 'o.qrShow');
+});
 
 $('share-shop').addEventListener('click', async () => {
   const url = $('shop-url').value;
@@ -170,30 +233,49 @@ let coverPhoto = null;
 let items = [];
 let pickPhoto = null; // callback for the shared file input
 
+// With a photo, tapping the frame opens it full screen (lightbox.js reads data-zoom);
+// without one, tapping it picks a photo.
 function showPhoto(el, url) {
   el.style.backgroundImage = url ? `url("${url}")` : '';
   el.classList.toggle('has-photo', Boolean(url));
+  if (url) el.dataset.zoom = url;
+  else delete el.dataset.zoom;
 }
 
-// Shrink to at most 1024 px and re-encode as JPEG so uploads stay small.
-async function resizeImage(file, max = 1024) {
+function showCover(url) {
+  coverPhoto = url;
+  showPhoto($('p-cover'), url);
+  $('cover-actions').classList.toggle('hidden', !url);
+}
+
+// Photo shapes, matching how they are shown: shop photo 16:9, menu item square.
+const PHOTO_SIZES = { cover: [1280, 720], item: [480, 480] };
+
+// Center-crop to the target shape, shrink, and re-encode as JPEG so every photo
+// is small and fits its frame in any browser.
+async function resizeImage(file, [w, h]) {
   const img = await new Promise((resolve, reject) => {
     const i = new Image();
     i.onload = () => resolve(i);
     i.onerror = () => reject(new Error(t('o.badImage')));
     i.src = URL.createObjectURL(file);
   });
-  const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const srcW = img.naturalWidth;
+  const srcH = img.naturalHeight;
+  const crop = Math.min(srcW / w, srcH / h);          // largest w:h box that fits the photo
+  const cw = w * crop;
+  const ch = h * crop;
+  const scale = Math.min(1, w / cw);                  // never enlarge small photos
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(img.naturalWidth * scale);
-  canvas.height = Math.round(img.naturalHeight * scale);
-  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  canvas.width = Math.round(cw * scale);
+  canvas.height = Math.round(ch * scale);
+  canvas.getContext('2d').drawImage(img, (srcW - cw) / 2, (srcH - ch) / 2, cw, ch, 0, 0, canvas.width, canvas.height);
   URL.revokeObjectURL(img.src);
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(t('o.badImage')))), 'image/jpeg', 0.82));
 }
 
-async function uploadImage(file) {
-  const blob = await resizeImage(file);
+async function uploadImage(file, kind) {
+  const blob = await resizeImage(file, PHOTO_SIZES[kind]);
   const res = await fetch(`/api/trucks/${creds.id}/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'image/jpeg', 'X-Token': creds.token },
@@ -204,8 +286,8 @@ async function uploadImage(file) {
   return data.url;
 }
 
-function choosePhoto(onUrl) {
-  pickPhoto = onUrl;
+function choosePhoto(kind, onUrl) {
+  pickPhoto = { kind, onUrl };
   $('file').value = '';
   $('file').click();
 }
@@ -217,20 +299,17 @@ $('file').addEventListener('change', async () => {
   pickPhoto = null;
   setMsg('profile-msg', t('o.uploading'));
   try {
-    done(await uploadImage(file));
+    done.onUrl(await uploadImage(file, done.kind));
     setMsg('profile-msg', t('o.uploaded'));
   } catch (err) {
     setMsg('profile-msg', err.message, true);
   }
 });
 
-$('p-cover').addEventListener('click', () => {
-  if (coverPhoto && confirm(t('o.removeCover'))) {
-    coverPhoto = null;
-    showPhoto($('p-cover'), null);
-    return;
-  }
-  choosePhoto((url) => { coverPhoto = url; showPhoto($('p-cover'), url); });
+$('p-cover').addEventListener('click', () => choosePhoto('cover', showCover));
+$('cover-change').addEventListener('click', () => choosePhoto('cover', showCover));
+$('cover-remove').addEventListener('click', () => {
+  if (confirm(t('o.confirmRemovePhoto'))) showCover(null);
 });
 
 function renderItems() {
@@ -252,6 +331,10 @@ function renderItems() {
         <select class="cat"><option value="food">${t('o.catFood')}</option><option value="drink">${t('o.catDrink')}</option></select>
         <label><input type="checkbox" class="sold"> ${t('o.soldOut')}</label>
         <button type="button" class="del">${t('o.delete')}</button>
+      </div>
+      <div class="photo-actions">
+        <button type="button" class="photo-change">${t('o.changePhoto')}</button>
+        <button type="button" class="photo-remove danger-link">${t('o.removePhoto')}</button>
       </div>`;
     const q = (s) => row.querySelector(s);
     q('.name').value = item.name || '';
@@ -259,19 +342,21 @@ function renderItems() {
     q('.desc').value = item.desc || '';
     q('.cat').value = item.category || 'food';
     q('.sold').checked = Boolean(item.soldOut);
-    showPhoto(q('.thumb'), item.photo);
+    const setItemPhoto = (url) => {
+      item.photo = url;
+      showPhoto(q('.thumb'), url);
+      q('.photo-actions').classList.toggle('hidden', !url);
+    };
+    setItemPhoto(item.photo || null);
     q('.name').addEventListener('input', (e) => { item.name = e.target.value; });
     q('.price').addEventListener('input', (e) => { item.price = e.target.value; });
     q('.desc').addEventListener('input', (e) => { item.desc = e.target.value; });
     q('.cat').addEventListener('change', (e) => { item.category = e.target.value; });
     q('.sold').addEventListener('change', (e) => { item.soldOut = e.target.checked; });
-    q('.thumb').addEventListener('click', () => {
-      if (item.photo && confirm(t('o.removeItemPhoto'))) {
-        item.photo = null;
-        showPhoto(q('.thumb'), null);
-        return;
-      }
-      choosePhoto((url) => { item.photo = url; showPhoto(q('.thumb'), url); });
+    q('.thumb').addEventListener('click', () => choosePhoto('item', setItemPhoto));
+    q('.photo-change').addEventListener('click', () => choosePhoto('item', setItemPhoto));
+    q('.photo-remove').addEventListener('click', () => {
+      if (confirm(t('o.confirmRemovePhoto'))) setItemPhoto(null);
     });
     q('.del').addEventListener('click', () => {
       items.splice(idx, 1);
@@ -579,4 +664,14 @@ async function loadTruck() {
   }
 }
 
+// Arrived by scanning a shop code QR: sign in with it, then drop it from the address bar.
+function codeFromHash() {
+  const m = location.hash.match(/^#code=([\w-]+)\.([\w-]+)$/);
+  if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  if (creds && creds.id !== m[1] && !confirm(t('o.confirmSwitch'))) return;
+  saveCreds({ id: m[1], token: m[2] });
+}
+
+codeFromHash();
 loadTruck();
