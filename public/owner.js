@@ -251,31 +251,7 @@ function showCover(url) {
 // Photo shapes, matching how they are shown: shop photo 16:9, menu item square.
 const PHOTO_SIZES = { cover: [1280, 720], item: [480, 480] };
 
-// Center-crop to the target shape, shrink, and re-encode as JPEG so every photo
-// is small and fits its frame in any browser.
-async function resizeImage(file, [w, h]) {
-  const img = await new Promise((resolve, reject) => {
-    const i = new Image();
-    i.onload = () => resolve(i);
-    i.onerror = () => reject(new Error(t('o.badImage')));
-    i.src = URL.createObjectURL(file);
-  });
-  const srcW = img.naturalWidth;
-  const srcH = img.naturalHeight;
-  const crop = Math.min(srcW / w, srcH / h);          // largest w:h box that fits the photo
-  const cw = w * crop;
-  const ch = h * crop;
-  const scale = Math.min(1, w / cw);                  // never enlarge small photos
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(cw * scale);
-  canvas.height = Math.round(ch * scale);
-  canvas.getContext('2d').drawImage(img, (srcW - cw) / 2, (srcH - ch) / 2, cw, ch, 0, 0, canvas.width, canvas.height);
-  URL.revokeObjectURL(img.src);
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(t('o.badImage')))), 'image/jpeg', 0.82));
-}
-
-async function uploadImage(file, kind) {
-  const blob = await resizeImage(file, PHOTO_SIZES[kind]);
+async function uploadImage(blob) {
   const res = await fetch(`/api/trucks/${creds.id}/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'image/jpeg', 'X-Token': creds.token },
@@ -297,9 +273,12 @@ $('file').addEventListener('change', async () => {
   if (!file || !pickPhoto) return;
   const done = pickPhoto;
   pickPhoto = null;
-  setMsg('profile-msg', t('o.uploading'));
   try {
-    done.onUrl(await uploadImage(file, done.kind));
+    // The owner frames the photo themselves, in the shape customers will see.
+    const blob = await Cropper.open(file, PHOTO_SIZES[done.kind]);
+    if (!blob) return;
+    setMsg('profile-msg', t('o.uploading'));
+    done.onUrl(await uploadImage(blob));
     setMsg('profile-msg', t('o.uploaded'));
   } catch (err) {
     setMsg('profile-msg', err.message, true);
