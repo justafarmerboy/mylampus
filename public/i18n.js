@@ -94,6 +94,9 @@
       'install.tipLabel': 'วิธีติดตั้งแอป',
       'install.tip': '<b>ติดตั้ง LAMPUS บน iPhone</b><ol><li>เปิดหน้านี้ใน <b>Safari</b></li><li>กดปุ่ม <b>แชร์</b> (สี่เหลี่ยมมีลูกศรชี้ขึ้น)</li><li>เลือก <b>เพิ่มไปยังหน้าจอโฮม</b></li></ol><small>แตะเพื่อปิด</small>',
       'install.button': '⤓ ติดตั้งแอป',
+      'install.tipAndroid': '<b>ติดตั้ง LAMPUS บนมือถือ Android</b><ol><li>เปิดหน้านี้ใน <b>Chrome</b></li><li>กดปุ่มเมนู <b>⋮</b> มุมขวาบน</li><li>เลือก <b>ติดตั้งแอป</b> หรือ <b>เพิ่มลงในหน้าจอหลัก</b></li></ol><small>ถ้าติดตั้งไว้แล้ว ให้หาไอคอน LAMPUS บนหน้าจอ · แตะเพื่อปิด</small>',
+      'install.tipDesktop': '<b>ติดตั้ง LAMPUS บนคอมพิวเตอร์</b><ol><li>ใช้ <b>Chrome</b> หรือ <b>Edge</b></li><li>กดไอคอนติดตั้ง <b>⊕</b> ท้ายช่องที่อยู่เว็บ หรือเมนู <b>⋮</b> › <b>ติดตั้ง LAMPUS</b></li></ol><small>แตะเพื่อปิด</small>',
+      'install.tipInApp': '<b>เปิดในเบราว์เซอร์ก่อนนะ</b><ol><li>กดปุ่มเมนู (<b>⋮</b> หรือ <b>…</b>) ของแอปที่เปิดลิงก์นี้อยู่ เช่น LINE</li><li>เลือก <b>เปิดในเบราว์เซอร์</b> (Safari หรือ Chrome)</li><li>แล้วกดปุ่ม ⤓ อีกครั้งเพื่อติดตั้ง</li></ol><small>แตะเพื่อปิด</small>',
 
       'o.back': '← ดูแผนที่หิ่งห้อย',
       'o.title': '🚚 ร้านของฉัน',
@@ -308,6 +311,9 @@
       'install.tipLabel': 'How to install the app',
       'install.tip': '<b>Install LAMPUS on iPhone</b><ol><li>Open this page in <b>Safari</b></li><li>Tap <b>Share</b> (the square with an up arrow)</li><li>Choose <b>Add to Home Screen</b></li></ol><small>Tap to close</small>',
       'install.button': '⤓ Install app',
+      'install.tipAndroid': '<b>Install LAMPUS on Android</b><ol><li>Open this page in <b>Chrome</b></li><li>Tap the <b>⋮</b> menu at the top right</li><li>Choose <b>Install app</b> or <b>Add to Home screen</b></li></ol><small>Already installed? Look for the LAMPUS icon on your home screen · Tap to close</small>',
+      'install.tipDesktop': '<b>Install LAMPUS on your computer</b><ol><li>Use <b>Chrome</b> or <b>Edge</b></li><li>Click the install icon <b>⊕</b> at the end of the address bar, or menu <b>⋮</b> › <b>Install LAMPUS</b></li></ol><small>Tap to close</small>',
+      'install.tipInApp': '<b>Open in your browser first</b><ol><li>Tap the menu (<b>⋮</b> or <b>…</b>) of the app showing this page, e.g. LINE</li><li>Choose <b>Open in browser</b> (Safari or Chrome)</li><li>Then tap ⤓ again to install</li></ol><small>Tap to close</small>',
 
       'o.back': '← Firefly map',
       'o.title': '🚚 My truck',
