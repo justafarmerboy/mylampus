@@ -4,7 +4,7 @@
 // on a flaky connection. Pages and scripts are network-first so updates show up
 // immediately; live data (/api/) is never cached.
 
-const CACHE = 'mylampus-v11';
+const CACHE = 'mylampus-v12';
 const SHELL = [
   '/', '/owner', '/firefly.css', '/map.js', '/owner.js', '/pwa.js', '/feedback.js', '/i18n.js', '/chat.js', '/mine.js', '/lightbox.js', '/cropper.js', '/vendor/qrcode/qrcode.js',
   '/vendor/leaflet/leaflet.css', '/vendor/leaflet/leaflet.js',
